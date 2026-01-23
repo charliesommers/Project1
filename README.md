@@ -12,17 +12,39 @@ Two powerful systems for sports betting analysis:
 - **Tracks performance** with historical analysis
 - **Totals only** - no spread betting
 
-👉 **[Quick Start Guide](QUICKSTART.md)** | **[Full Documentation](CBB_PICKER_README.md)**
+👉 **[How to Get Picks](HOW_TO_GET_PICKS.md)** | **[Setup Guide](YOUR_SETUP_GUIDE.md)** | **[Full Docs](CBB_PICKER_README.md)**
 
-### Quick Start - CBB Picker
+### 🚀 Get Today's Picks - Super Simple!
 
+**Just run this:**
 ```bash
-# Auto-fetch Greg's lines and generate picks
-python cbb_picker.py picks --auto-fetch --use-api --api-key YOUR_KEY
-
-# View historical performance
-python cbb_picker.py performance gregs_lines.xlsx
+python picks
 ```
+
+**See this demo:**
+```bash
+python demo_picks.py
+```
+
+**Output example:**
+```
+📅 January 23, 2026 - CBB TOTALS PICKS
+
+🔥 🔵 UNDER 145.5 - Purdue vs Indiana
+   Edge: 7.0 pts | Greg: 138.5 | Book: 145.5
+
+🔥 🔴 OVER 150.0 - Gonzaga vs Saint Marys
+   Edge: 6.5 pts | Greg: 156.5 | Book: 150.0
+```
+
+**More options:**
+```bash
+python get_picks.py           # Formatted numbered list
+python get_picks.py high      # High confidence only
+python get_picks.py top5      # Top 5 picks
+```
+
+👉 See **[HOW_TO_GET_PICKS.md](HOW_TO_GET_PICKS.md)** for all methods
 
 ---
 

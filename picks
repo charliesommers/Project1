@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+Ultra-simple picks interface - just run 'python picks' or './picks'
+"""
+import sys
+from datetime import datetime
+from gregs_cbb_parser import GregsCBBParser
+from vsin_scraper import VSINScraper
+from odds_fetcher import OddsFetcher
+from daily_picks_generator import DailyPicksGenerator
+
+
+def main():
+    """Get picks and display as simple list."""
+    # Auto-fetch Greg's lines
+    scraper = VSINScraper()
+
+    if scraper.auto_update_check():
+        file_path = scraper.fetch_daily_lines()
+        if not file_path:
+            file_path = scraper.get_latest_lines_path()
+    else:
+        file_path = scraper.get_latest_lines_path()
+
+    if not file_path:
+        print("❌ Could not get Greg's lines from VSIN")
+        print("   Try manually downloading from: https://vsin.com/college-basketball/greg-petersons-daily-college-basketball-lines/")
+        return
+
+    # Parse
+    parser = GregsCBBParser(file_path)
+    games = parser.parse_all_sheets()
+
+    if not games:
+        print("❌ No games found in file")
+        return
+
+    # Get odds
+    fetcher = OddsFetcher()
+    sportsbook_data = fetcher.fetch_ncaab_odds('bet365')
+
+    if not sportsbook_data:
+        print("❌ Could not fetch sportsbook odds")
+        print("   Check your API key in .env file")
+        return
+
+    # Generate picks
+    generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
+    picks = generator.generate_picks(games, sportsbook_data)
+
+    # Display
+    if not picks:
+        print(f"\n📅 {datetime.now().strftime('%B %d, %Y')}")
+        print("❌ No picks today (no edges meet criteria)")
+        print("\nStrategy: UNDER ≥5 below | OVER ≥3 above\n")
+        return
+
+    print(f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n")
+
+    for i, pick in enumerate(picks, 1):
+        conf_emoji = "🔥" if pick['confidence'] == 'high' else "✓"
+        pick_emoji = "🔵" if pick['pick'] == 'UNDER' else "🔴"
+
+        print(f"{conf_emoji} {pick_emoji} {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}")
+        print(f"   Edge: {abs(pick['edge']):.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}")
+        if i < len(picks):
+            print()
+
+    print(f"\n{'─'*60}")
+    print(f"🔥 = High confidence | ✓ = Good bet")
+    print(f"🔵 = Under | 🔴 = Over")
+    print(f"Strategy: UNDER ≥5 below | OVER ≥3 above")
+    print(f"{'─'*60}\n")
+
+
+if __name__ == '__main__':
+    main()

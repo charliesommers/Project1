@@ -131,8 +131,8 @@ def get_picks_text():
         text += "─"*60 + "\n"
         return text
 
-    # Generate ALL games with edges (no threshold filtering)
-    generator = DailyPicksGenerator(under_threshold=0.1, over_threshold=0.1)  # Very low threshold to get all games
+    # Generate picks for ALL games (sorted by edge later)
+    generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
     all_picks = generator.generate_picks(games, sportsbook_data)
 
     # Sort by absolute edge (biggest edges first)

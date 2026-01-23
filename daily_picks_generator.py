@@ -66,42 +66,41 @@ class DailyPicksGenerator:
             # Calculate edge
             edge = gregs_total - sportsbook_total
 
-            # Determine pick based on strategy
-            pick = None
-            confidence = 'medium'
-
-            if edge <= -self.under_threshold:
-                # Greg's line is significantly LOWER - bet UNDER
+            # Always determine a pick based on Greg vs sportsbook
+            # (regardless of threshold)
+            if edge < 0:
+                # Greg's line is LOWER - bet UNDER
                 pick = 'UNDER'
-                # Larger edge = higher confidence
+            else:
+                # Greg's line is HIGHER or EQUAL - bet OVER
+                pick = 'OVER'
+
+            # Determine confidence
+            confidence = 'medium'
+            if pick == 'UNDER':
                 if abs(edge) >= 7:
                     confidence = 'high'
                 elif abs(edge) >= 6:
                     confidence = 'medium-high'
-
-            elif edge >= self.over_threshold:
-                # Greg's line is significantly HIGHER - bet OVER
-                pick = 'OVER'
-                # Larger edge = higher confidence
+            elif pick == 'OVER':
                 if edge >= 5:
                     confidence = 'high'
                 elif edge >= 4:
                     confidence = 'medium-high'
 
-            if pick:
-                picks.append({
-                    'date': gregs_game['date'],
-                    'matchup': gregs_game['matchup'],
-                    'favorite': gregs_game['favorite'],
-                    'underdog': gregs_game['underdog'],
-                    'pick': pick,
-                    'gregs_total': gregs_total,
-                    'sportsbook_total': sportsbook_total,
-                    'edge': edge,
-                    'confidence': confidence,
-                    'reasoning': self._get_reasoning(pick, edge),
-                    'game_time': sportsbook_game.get('commence_time', '')
-                })
+            picks.append({
+                'date': gregs_game['date'],
+                'matchup': gregs_game['matchup'],
+                'favorite': gregs_game['favorite'],
+                'underdog': gregs_game['underdog'],
+                'pick': pick,
+                'gregs_total': gregs_total,
+                'sportsbook_total': sportsbook_total,
+                'edge': edge,
+                'confidence': confidence,
+                'reasoning': self._get_reasoning(pick, edge),
+                'game_time': sportsbook_game.get('commence_time', '')
+            })
 
         # Sort by absolute edge (biggest edges first)
         picks.sort(key=lambda x: abs(x['edge']), reverse=True)

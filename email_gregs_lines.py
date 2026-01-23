@@ -56,25 +56,33 @@ def get_picks_text():
     if not all_games:
         return "❌ No games found in Greg's sheet"
 
-    # Get today's and future games (within next 3 days)
+    # Get today's games only
     from datetime import timedelta
-    today = datetime.now()
-    future_cutoff = today + timedelta(days=3)
+    today = datetime.now().date()  # Just the date, not time
+    tomorrow = today + timedelta(days=1)
 
-    # Filter to games within the next 3 days
-    upcoming_games = [game for game in all_games if today <= game['date'] <= future_cutoff]
+    # Try today's games first
+    todays_games = [game for game in all_games if game['date'].date() == today]
 
-    if not upcoming_games:
-        # If no upcoming games, just get the latest date
-        latest_date = max(game['date'] for game in all_games)
-        games = [game for game in all_games if game['date'] == latest_date]
-        print(f"No upcoming games found, using latest date: {latest_date.strftime('%B %d, %Y')}")
+    if todays_games:
+        games = todays_games
+        print(f"Found {len(games)} games for TODAY ({today.strftime('%B %d, %Y')})")
     else:
-        # Get the earliest upcoming date (likely today or tomorrow)
-        next_date = min(game['date'] for game in upcoming_games)
-        games = [game for game in upcoming_games if game['date'] == next_date]
-
-    print(f"Found {len(all_games)} total games, {len(games)} games for {games[0]['date'].strftime('%B %d, %Y')}")
+        # If no games today, try tomorrow
+        tomorrows_games = [game for game in all_games if game['date'].date() == tomorrow]
+        if tomorrows_games:
+            games = tomorrows_games
+            print(f"No games today, found {len(games)} games for TOMORROW ({tomorrow.strftime('%B %d, %Y')})")
+        else:
+            # Fallback: get next available date
+            future_games = [game for game in all_games if game['date'].date() >= today]
+            if future_games:
+                next_date = min(game['date'] for game in future_games).date()
+                games = [game for game in all_games if game['date'].date() == next_date]
+                print(f"No games today/tomorrow, found {len(games)} games for {next_date.strftime('%B %d, %Y')}")
+            else:
+                games = all_games[:10]  # Just show some games
+                print(f"No future games found, showing sample of {len(games)} games")
 
     # Format as text - just show Greg's lines
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"

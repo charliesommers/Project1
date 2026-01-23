@@ -70,8 +70,26 @@ def get_picks_text():
     fetcher = OddsFetcher()
     sportsbook_data = fetcher.fetch_ncaab_odds('bet365')
 
+    # If no sportsbook odds available, show Greg's lines only
     if not sportsbook_data:
-        return "❌ Could not fetch sportsbook odds. Check API key."
+        print(f"ℹ️  No Bet365 odds available - showing Greg's lines only")
+        text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"
+        text += f"⚠️  No Bet365 odds available right now\n"
+        text += f"Total games from Greg: {len(games)}\n\n"
+
+        # Show top games sorted by total
+        sorted_games = sorted(games, key=lambda x: x['total'], reverse=True)
+        for i, game in enumerate(sorted_games[:15], 1):
+            spread_str = f"{game['spread']:+.1f}"
+            text += f"{i}. {game['matchup']}\n"
+            text += f"   Spread: {game['favorite']} {spread_str}\n"
+            text += f"   Total: {game['total']:.1f}\n\n"
+
+        text += "─"*60 + "\n"
+        text += "💡 Compare to your sportsbook when odds are posted\n"
+        text += "⬇️ UNDER when Greg ≥5 below | ⬆️ OVER when Greg ≥3 above\n"
+        text += "─"*60 + "\n"
+        return text
 
     # Generate picks
     generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)

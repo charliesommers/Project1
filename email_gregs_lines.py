@@ -51,10 +51,16 @@ def get_picks_text():
 
     # Parse
     parser = GregsCBBParser(file_path)
-    games = parser.parse_all_sheets()
+    all_games = parser.parse_all_sheets()
 
-    if not games:
+    if not all_games:
         return "❌ No games found in Greg's sheet"
+
+    # Get only the most recent date's games
+    latest_date = max(game['date'] for game in all_games)
+    games = [game for game in all_games if game['date'] == latest_date]
+
+    print(f"Found {len(all_games)} total games, {len(games)} games for {latest_date.strftime('%B %d, %Y')}")
 
     # Format as text - just show Greg's lines
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"

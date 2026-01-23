@@ -6,6 +6,14 @@ import requests
 from typing import Dict, List, Optional
 from datetime import datetime
 import os
+from pathlib import Path
+
+# Try to load .env file if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 class OddsFetcher:

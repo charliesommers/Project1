@@ -37,8 +37,17 @@ class GregsCBBParser:
             # Handle various formats
             sheet_name = str(sheet_name).strip()
 
+            # Skip sheets that start with "Copy of"
+            if sheet_name.startswith("Copy of"):
+                return None
+
+            # MDYY format (e.g., "1925" = 1/9/25)
+            if len(sheet_name) == 4:
+                month = int(sheet_name[0])
+                day = int(sheet_name[1])
+                year = 2000 + int(sheet_name[2:4])
             # MDDYY format (e.g., "12226" = 1/22/26)
-            if len(sheet_name) == 5:
+            elif len(sheet_name) == 5:
                 month = int(sheet_name[0])
                 day = int(sheet_name[1:3])
                 year = 2000 + int(sheet_name[3:5])

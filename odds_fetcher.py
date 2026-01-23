@@ -41,9 +41,12 @@ class OddsFetcher:
             List of games with odds
         """
         if not self.api_key:
-            print("Warning: No API key provided. Set ODDS_API_KEY environment variable")
+            print("ERROR: No API key provided. Set ODDS_API_KEY environment variable")
             print("Get a free key at: https://the-odds-api.com")
+            print(f"Current API key value: {self.api_key}")
             return []
+
+        print(f"Using API key: {self.api_key[:8]}...{self.api_key[-4:]}")  # Show partial key
 
         endpoint = f"{self.base_url}/sports/basketball_ncaab/odds"
 
@@ -55,8 +58,21 @@ class OddsFetcher:
             'bookmakers': bookmaker
         }
 
+        print(f"Fetching odds from: {endpoint}")
+        print(f"Bookmaker: {bookmaker}")
+
         try:
-            response = requests.get(endpoint, params=params, timeout=10)
+            response = requests.get(endpoint, params=params, timeout=30)
+            print(f"API Response Status: {response.status_code}")
+
+            if response.status_code == 401:
+                print("ERROR: 401 Unauthorized - API key is invalid")
+                print(f"API key used: {self.api_key}")
+                return []
+            elif response.status_code == 429:
+                print("ERROR: 429 Rate limit exceeded - API quota exhausted")
+                return []
+
             response.raise_for_status()
             games = response.json()
 

@@ -131,10 +131,8 @@ def get_picks_text():
         text += "─"*60 + "\n"
         return text
 
-    # Generate picks with looser threshold (within 2 points of target)
-    # Target: UNDER ≥5, OVER ≥3
-    # Show: UNDER ≥3, OVER ≥1 (within 2 points)
-    generator = DailyPicksGenerator(under_threshold=3.0, over_threshold=1.0)
+    # Generate ALL games with edges (no threshold filtering)
+    generator = DailyPicksGenerator(under_threshold=0.1, over_threshold=0.1)  # Very low threshold to get all games
     all_picks = generator.generate_picks(games, sportsbook_data)
 
     # Sort by absolute edge (biggest edges first)
@@ -146,7 +144,7 @@ def get_picks_text():
         return f"""
 📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS
 
-❌ No picks today (no edges meet criteria)
+❌ No games with odds available
 
 Strategy: UNDER ≥5 below | OVER ≥3 above
 """
@@ -157,15 +155,16 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
     for i, pick in enumerate(all_picks, 1):
         edge = abs(pick['edge'])
 
-        # Determine strength
+        # Determine emoji (no text, just emoji)
+        emoji = ""
         if pick['pick'] == 'UNDER' and edge >= 5.0:
-            strength = "🔥 STRONG"
+            emoji = "🔥 "
         elif pick['pick'] == 'OVER' and edge >= 3.0:
-            strength = "🔥 STRONG"
-        else:
-            strength = "⚠️  CLOSE"
-
-        pick_emoji = "⬇️" if pick['pick'] == 'UNDER' else "⬆️"
+            emoji = "🔥 "
+        elif pick['pick'] == 'UNDER' and edge >= 3.0:
+            emoji = "⚠️  "
+        elif pick['pick'] == 'OVER' and edge >= 1.0:
+            emoji = "⚠️  "
 
         # Format game time
         game_time_str = ""
@@ -181,15 +180,14 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
             except:
                 pass
 
-        text += f"{strength} {pick_emoji} {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}\n"
+        text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}\n"
         text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
         if i < len(all_picks):
             text += "\n"
 
     text += "\n" + "─"*60 + "\n"
-    text += "🔥 STRONG = UNDER ≥5 below | OVER ≥3 above\n"
-    text += "⚠️  CLOSE = Within 2 pts of target (watch for line movement)\n"
-    text += "⬇️ = Under | ⬆️ = Over\n"
+    text += "🔥 = UNDER ≥5 below | OVER ≥3 above\n"
+    text += "⚠️  = Within 2 pts of target\n"
     text += f"📊 Sportsbook: {bookmaker_used.upper()}\n"
     text += "─"*60 + "\n"
 

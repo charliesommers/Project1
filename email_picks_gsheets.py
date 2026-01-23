@@ -171,7 +171,6 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
         game_time_str = ""
         if pick.get('game_time'):
             try:
-                from datetime import datetime
                 import pytz
                 # Parse ISO format time
                 game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))

@@ -60,7 +60,7 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
 
     for i, pick in enumerate(picks, 1):
         conf_emoji = "🔥" if pick['confidence'] == 'high' else "✓"
-        pick_emoji = "🔵" if pick['pick'] == 'UNDER' else "🔴"
+        pick_emoji = "⬇️" if pick['pick'] == 'UNDER' else "⬆️"
 
         text += f"{conf_emoji} {pick_emoji} {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}\n"
         text += f"   Edge: {abs(pick['edge']):.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
@@ -69,7 +69,7 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
 
     text += "\n" + "─"*60 + "\n"
     text += "🔥 = High confidence | ✓ = Good bet\n"
-    text += "🔵 = Under | 🔴 = Over\n"
+    text += "⬇️ = Under | ⬆️ = Over\n"
     text += "Strategy: UNDER ≥5 below | OVER ≥3 above\n"
     text += "─"*60 + "\n"
 

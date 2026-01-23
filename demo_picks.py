@@ -111,7 +111,7 @@ def main():
 
     for i, pick in enumerate(picks, 1):
         conf_emoji = "🔥" if pick['confidence'] == 'high' else "✓"
-        pick_emoji = "🔵" if pick['pick'] == 'UNDER' else "🔴"
+        pick_emoji = "⬇️" if pick['pick'] == 'UNDER' else "⬆️"
 
         print(f"{conf_emoji} {pick_emoji} {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}")
         print(f"   Edge: {abs(pick['edge']):.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}")
@@ -120,7 +120,7 @@ def main():
 
     print(f"\n{'─'*60}")
     print(f"🔥 = High confidence | ✓ = Good bet")
-    print(f"🔵 = Under | 🔴 = Over")
+    print(f"⬇️ = Under | ⬆️ = Over")
     print(f"Strategy: UNDER ≥5 below | OVER ≥3 above")
     print(f"{'─'*60}\n")
 

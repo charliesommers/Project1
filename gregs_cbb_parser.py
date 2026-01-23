@@ -119,15 +119,15 @@ class GregsCBBParser:
             return None
 
         # Determine which is spread and which is total
-        # Spread is negative, total is positive (usually 3 digits)
-        if line1 < 0 and line2 > 100:
+        # Spread is negative, total is positive (typically 100-200 range)
+        if line1 < 0 and line2 > 0:
             # Team 1 is favorite with spread, Team 2 is underdog with total
             favorite = team1
             underdog = team2
             spread = line1
             total = line2
             home_team = team2 if not neutral_court else None
-        elif line2 < 0 and line1 > 100:
+        elif line2 < 0 and line1 > 0:
             # Team 2 is favorite with spread, Team 1 is underdog with total
             favorite = team2
             underdog = team1
@@ -135,7 +135,8 @@ class GregsCBBParser:
             total = line1
             home_team = team1 if not neutral_court else None
         else:
-            # Invalid format
+            # Invalid format - both negative or both positive?
+            print(f"Warning: Invalid line format for {team1}/{team2}: {line1}/{line2}")
             return None
 
         return {

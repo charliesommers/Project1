@@ -66,11 +66,25 @@ def get_picks_text():
     if not all_games:
         return "❌ No games found in Greg's sheet"
 
-    # Get only the most recent date's games
-    latest_date = max(game['date'] for game in all_games)
-    games = [game for game in all_games if game['date'] == latest_date]
+    # Get today's and future games (within next 3 days)
+    from datetime import timedelta
+    today = datetime.now()
+    future_cutoff = today + timedelta(days=3)
 
-    print(f"Found {len(all_games)} total games, {len(games)} games for {latest_date.strftime('%B %d, %Y')}")
+    # Filter to games within the next 3 days
+    upcoming_games = [game for game in all_games if today <= game['date'] <= future_cutoff]
+
+    if not upcoming_games:
+        # If no upcoming games, just get the latest date
+        latest_date = max(game['date'] for game in all_games)
+        games = [game for game in all_games if game['date'] == latest_date]
+        print(f"No upcoming games found, using latest date: {latest_date.strftime('%B %d, %Y')}")
+    else:
+        # Get the earliest upcoming date (likely today or tomorrow)
+        next_date = min(game['date'] for game in upcoming_games)
+        games = [game for game in upcoming_games if game['date'] == next_date]
+
+    print(f"Found {len(all_games)} total games, {len(games)} games for {games[0]['date'].strftime('%B %d, %Y')}")
 
     # Get odds
     fetcher = OddsFetcher()

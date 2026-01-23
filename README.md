@@ -1,8 +1,36 @@
 # Sports Gambling Picker
 
+Two powerful systems for sports betting analysis:
+
+## 1. Greg Peterson's CBB Totals Picker (NEW! 🏀)
+
+**Specialized system for college basketball totals betting** using Greg Peterson's daily handicapping lines.
+
+- **Auto-fetches** daily lines from VSIN
+- **Compares** Greg's totals vs Bet365
+- **Generates picks** using proven strategy (Under ≥5 below, Over ≥3 above)
+- **Tracks performance** with historical analysis
+- **Totals only** - no spread betting
+
+👉 **[Quick Start Guide](QUICKSTART.md)** | **[Full Documentation](CBB_PICKER_README.md)**
+
+### Quick Start - CBB Picker
+
+```bash
+# Auto-fetch Greg's lines and generate picks
+python cbb_picker.py picks --auto-fetch --use-api --api-key YOUR_KEY
+
+# View historical performance
+python cbb_picker.py performance gregs_lines.xlsx
+```
+
+---
+
+## 2. General Sports Picker
+
 An automatic sports gambling picker that analyzes Excel forecasting and handicapping data to recommend optimal betting picks.
 
-## Features
+### Features
 
 - **Excel Data Import**: Read handicapping data from Excel spreadsheets
 - **Multi-Factor Analysis**: Evaluate picks based on multiple metrics (odds, confidence, edge, etc.)

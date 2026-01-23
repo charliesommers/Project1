@@ -14,8 +14,8 @@ from odds_fetcher import OddsFetcher
 from daily_picks_generator import DailyPicksGenerator
 
 
-# Greg's Google Sheets ID
-GOOGLE_SHEETS_ID = "1W7O4jc_NBKDjxktTfkFkBUy9wrc8QQMO"
+# Greg's Google Sheets ID (from VSIN website)
+GOOGLE_SHEETS_ID = "1RoqluBp1zE5HduO-QNb5pKIQen98pnIEUZz7CERsPgU"
 GOOGLE_SHEETS_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=xlsx"
 
 

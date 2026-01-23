@@ -94,9 +94,21 @@ def get_picks_text():
                 games = all_games[:10]  # Just show some games
                 print(f"No future games found, showing sample of {len(games)} games")
 
-    # Get odds
+    # Get odds - try multiple bookmakers
     fetcher = OddsFetcher()
-    sportsbook_data = fetcher.fetch_ncaab_odds('bet365')
+
+    # Try multiple bookmakers in order of preference
+    bookmakers = ['fanduel', 'draftkings', 'bet365', 'betmgm']
+    sportsbook_data = None
+    bookmaker_used = None
+
+    for bookmaker in bookmakers:
+        print(f"Trying {bookmaker}...")
+        sportsbook_data = fetcher.fetch_ncaab_odds(bookmaker)
+        if sportsbook_data:
+            bookmaker_used = bookmaker
+            print(f"✓ Got odds from {bookmaker}")
+            break
 
     # If no sportsbook odds available, show Greg's lines only
     if not sportsbook_data:
@@ -133,7 +145,8 @@ def get_picks_text():
 Strategy: UNDER ≥5 below | OVER ≥3 above
 """
 
-    text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n\n"
+    text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n"
+    text += f"📊 Odds from: {bookmaker_used.upper()}\n\n"
 
     for i, pick in enumerate(picks, 1):
         conf_emoji = "🔥" if pick['confidence'] == 'high' else "✓"
@@ -147,6 +160,7 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
     text += "\n" + "─"*60 + "\n"
     text += "🔥 = High confidence | ✓ = Good bet\n"
     text += "⬇️ = Under | ⬆️ = Over\n"
+    text += f"📊 Sportsbook: {bookmaker_used.upper()}\n"
     text += "Strategy: UNDER ≥5 below | OVER ≥3 above\n"
     text += "─"*60 + "\n"
 

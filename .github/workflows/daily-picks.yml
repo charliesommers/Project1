@@ -1,0 +1,35 @@
+name: Daily CBB Picks Email
+
+on:
+  schedule:
+    # Runs at 11:30 UTC (5:30 AM CST) every day
+    - cron: '30 11 * * *'
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  send-picks:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Send picks email
+      env:
+        ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        SMTP_SERVER: smtp.gmail.com
+        SMTP_PORT: 587
+      run: |
+        python email_picks.py

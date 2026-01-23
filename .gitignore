@@ -48,6 +48,10 @@ data/*.xls
 
 # Logs
 *.log
+logs/
+
+# Daily picks output
+daily_picks/
 
 # OS
 .DS_Store

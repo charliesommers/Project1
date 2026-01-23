@@ -131,12 +131,18 @@ def get_picks_text():
         text += "─"*60 + "\n"
         return text
 
-    # Generate picks
-    generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
-    picks = generator.generate_picks(games, sportsbook_data)
+    # Generate picks with looser threshold (within 2 points of target)
+    # Target: UNDER ≥5, OVER ≥3
+    # Show: UNDER ≥3, OVER ≥1 (within 2 points)
+    generator = DailyPicksGenerator(under_threshold=3.0, over_threshold=1.0)
+    all_picks = generator.generate_picks(games, sportsbook_data)
+
+    # Sort by absolute edge (biggest edges first)
+    if all_picks:
+        all_picks.sort(key=lambda x: abs(x['edge']), reverse=True)
 
     # Format as text
-    if not picks:
+    if not all_picks:
         return f"""
 📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS
 
@@ -148,20 +154,44 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n"
     text += f"📊 Odds from: {bookmaker_used.upper()}\n\n"
 
-    for i, pick in enumerate(picks, 1):
-        conf_emoji = "🔥" if pick['confidence'] == 'high' else "✓"
+    for i, pick in enumerate(all_picks, 1):
+        edge = abs(pick['edge'])
+
+        # Determine strength
+        if pick['pick'] == 'UNDER' and edge >= 5.0:
+            strength = "🔥 STRONG"
+        elif pick['pick'] == 'OVER' and edge >= 3.0:
+            strength = "🔥 STRONG"
+        else:
+            strength = "⚠️  CLOSE"
+
         pick_emoji = "⬇️" if pick['pick'] == 'UNDER' else "⬆️"
 
-        text += f"{conf_emoji} {pick_emoji} {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}\n"
-        text += f"   Edge: {abs(pick['edge']):.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
-        if i < len(picks):
+        # Format game time
+        game_time_str = ""
+        if pick.get('game_time'):
+            try:
+                from datetime import datetime
+                import pytz
+                # Parse ISO format time
+                game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
+                # Convert to Central Time
+                central = pytz.timezone('America/Chicago')
+                game_time_cst = game_time_utc.astimezone(central)
+                game_time_str = f" ({game_time_cst.strftime('%I:%M %p CST')})"
+            except:
+                pass
+
+        text += f"{strength} {pick_emoji} {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}\n"
+        text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
+        if i < len(all_picks):
             text += "\n"
 
     text += "\n" + "─"*60 + "\n"
-    text += "🔥 = High confidence | ✓ = Good bet\n"
+    text += "🔥 STRONG = UNDER ≥5 below | OVER ≥3 above\n"
+    text += "⚠️  CLOSE = Within 2 pts of target (watch for line movement)\n"
     text += "⬇️ = Under | ⬆️ = Over\n"
     text += f"📊 Sportsbook: {bookmaker_used.upper()}\n"
-    text += "Strategy: UNDER ≥5 below | OVER ≥3 above\n"
     text += "─"*60 + "\n"
 
     return text

@@ -94,6 +94,9 @@ class DailyPicksGenerator:
             if conference == 'Other':
                 conference = get_conference(gregs_game['underdog'])
 
+            # Get away team for Bet365-style sorting
+            away_team = sportsbook_game.get('away_team', '')
+
             picks.append({
                 'date': gregs_game['date'],
                 'matchup': gregs_game['matchup'],
@@ -107,7 +110,8 @@ class DailyPicksGenerator:
                 'reasoning': self._get_reasoning(pick, edge),
                 'game_time': sportsbook_game.get('commence_time', ''),
                 'bookmaker': sportsbook_game.get('source_bookmaker', ''),
-                'conference': conference
+                'conference': conference,
+                'away_team': away_team
             })
 
         # Sort by absolute edge (biggest edges first)

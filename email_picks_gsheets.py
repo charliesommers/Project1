@@ -146,10 +146,13 @@ def get_picks_text():
     generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
     picks_with_odds = generator.generate_picks(games, all_sportsbook_data)
 
-    # Sort by game time (chronological order)
+    # Sort by game time first, then alphabetically by away team (Bet365 style)
     if picks_with_odds:
-        # Sort by game time, putting games without time at the end
-        picks_with_odds.sort(key=lambda x: x.get('game_time', 'ZZZ'))
+        # Sort by: 1) game time, 2) away team alphabetically
+        picks_with_odds.sort(key=lambda x: (
+            x.get('game_time', 'ZZZ'),  # Primary: time
+            x.get('away_team', '').lower()  # Secondary: away team alphabetically
+        ))
 
     # Separate top picks (flame emoji worthy)
     top_picks = []

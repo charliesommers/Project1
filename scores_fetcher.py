@@ -163,6 +163,27 @@ class ScoresFetcher:
         team1 = team1.lower().strip()
         team2 = team2.lower().strip()
 
+        # Remove common mascots/nicknames from sportsbook names
+        mascots = [
+            'aggies', 'aztecs', 'badgers', 'bears', 'bearcats', 'beavers', 'bengals',
+            'blue devils', 'bobcats', 'broncos', 'bruins', 'buccaneers', 'buckeyes',
+            'buffalo', 'bulldogs', 'cardinals', 'chanticleers', 'cougars', 'cowboys',
+            'crimson tide', 'crusaders', 'cyclones', 'demons', 'ducks', 'eagles',
+            'falcons', 'fighting irish', 'gators', 'golden eagles', 'golden gophers',
+            'grizzlies', 'hawkeyes', 'hilltoppers', 'hokies', 'hornets', 'huskies',
+            'hurricanes', 'jayhawks', 'knights', 'lancers', 'lions', 'lobos',
+            'miners', 'mountaineers', 'musketeers', 'nittany lions', 'orangemen',
+            'owls', 'panthers', 'pirates', 'ragin cajuns', 'ramblers', 'rams',
+            'razorbacks', 'red flash', 'red raiders', 'red storm', 'rebels',
+            'river hawks', 'salukis', 'seminoles', 'sharks', 'skyhawks', 'sooners',
+            'spartans', 'sun devils', 'tar heels', 'terrapins', 'tigers', 'titans',
+            'trojans', 'utes', 'volunteers', 'wildcats', 'wolverines', 'wolfpack'
+        ]
+
+        for mascot in mascots:
+            team1 = team1.replace(mascot, '').strip()
+            team2 = team2.replace(mascot, '').strip()
+
         # Direct match
         if team1 == team2:
             return True
@@ -171,20 +192,42 @@ class ScoresFetcher:
         if team1 in team2 or team2 in team1:
             return True
 
-        # Common abbreviations
-        abbrevs = {
-            'st': 'state',
-            'state': 'st',
-            'uw': 'wisconsin',
+        # Common abbreviations and variations
+        replacements = {
+            'st.': 'state', 'st ': 'state ', ' st': ' state',
+            'fl ': 'florida ', 'fl.': 'florida',
+            'nc ': 'north carolina ', 'nc.': 'north carolina',
+            'uconn': 'connecticut',
+            'coast carolina': 'coastal carolina',
+            'southern miss': 'southern mississippi',
+            'new mexico st': 'new mexico state',
+            'florida international': 'fl international',
+            'fiu': 'florida international',
+            'ucf': 'central florida',
+            'lsu': 'louisiana state',
+            'ole miss': 'mississippi',
+            'miami fl': 'miami',
+            'miami oh': 'miami ohio',
+            'vcu': 'virginia commonwealth',
             'usc': 'southern california',
-            # Add more as needed
+            'unc': 'north carolina',
+            'unlv': 'nevada las vegas',
         }
 
-        for abbrev, full in abbrevs.items():
-            if abbrev in team1 and full in team2:
-                return True
-            if full in team1 and abbrev in team2:
-                return True
+        # Apply replacements to both teams
+        t1_normalized = team1
+        t2_normalized = team2
+
+        for abbrev, full in replacements.items():
+            t1_normalized = t1_normalized.replace(abbrev, full)
+            t2_normalized = t2_normalized.replace(abbrev, full)
+
+        # Check normalized versions
+        if t1_normalized == t2_normalized:
+            return True
+
+        if t1_normalized in t2_normalized or t2_normalized in t1_normalized:
+            return True
 
         return False
 

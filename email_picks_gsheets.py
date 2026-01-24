@@ -51,6 +51,35 @@ def download_gregs_sheet(output_path="data/gregs_lines_latest.xlsx"):
         return None
 
 
+def clean_team_name(team_name: str) -> str:
+    """Remove mascots from team names for cleaner display."""
+    mascots = [
+        'aggies', 'aztecs', 'badgers', 'bears', 'bearcats', 'beavers', 'bengals',
+        'blue devils', 'bobcats', 'broncos', 'bruins', 'buccaneers', 'buckeyes',
+        'buffalo', 'bulldogs', 'cardinals', 'chanticleers', 'cougars', 'cowboys',
+        'crimson tide', 'crusaders', 'cyclones', 'demons', 'ducks', 'eagles',
+        'falcons', 'fighting irish', 'gators', 'golden eagles', 'golden gophers',
+        'grizzlies', 'hawkeyes', 'hilltoppers', 'hokies', 'hornets', 'huskies',
+        'hurricanes', 'jayhawks', 'knights', 'lancers', 'lions', 'lobos',
+        'miners', 'mountaineers', 'musketeers', 'nittany lions', 'orangemen',
+        'owls', 'panthers', 'pirates', 'ragin cajuns', 'ramblers', 'rams',
+        'razorbacks', 'red flash', 'red raiders', 'red storm', 'rebels',
+        'river hawks', 'salukis', 'seminoles', 'sharks', 'skyhawks', 'sooners',
+        'spartans', 'sun devils', 'tar heels', 'terrapins', 'tigers', 'titans',
+        'trojans', 'utes', 'volunteers', 'wildcats', 'wolverines', 'wolfpack'
+    ]
+
+    name = team_name.strip()
+    name_lower = name.lower()
+
+    for mascot in mascots:
+        if name_lower.endswith(mascot):
+            name = name[:-(len(mascot))].strip()
+            break
+
+    return name
+
+
 def get_picks_text():
     """Get picks as formatted text."""
     # Download Greg's Google Sheet
@@ -175,15 +204,16 @@ def get_picks_text():
             print(f"  - {game['matchup']}")
 
     # Format as text
-    text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n"
-    text += f"📊 Odds from: {', '.join([b.upper() for b in bookmakers_found])}\n"
-    text += f"📋 Games: {len(picks_with_odds)} with odds, {len(games_without_odds)} pending\n\n"
+    text = f"\n📅 {datetime.now().strftime('%B %d, %Y')}\n"
+    text += f"CBB TOTALS PICKS\n\n"
+    text += f"{len(picks_with_odds)} games with odds\n"
+    text += f"{len(games_without_odds)} pending\n"
 
     # Display TOP PICKS section (flame-worthy bets in chronological order)
     if top_picks:
-        text += "═"*60 + "\n"
-        text += "🔥 TOP PICKS (Sorted by Game Time)\n"
-        text += "═"*60 + "\n\n"
+        text += "\n" + "="*50 + "\n"
+        text += "🔥 TOP PICKS\n"
+        text += "="*50 + "\n\n"
 
         for pick in top_picks:
             edge = abs(pick['edge'])
@@ -196,29 +226,29 @@ def get_picks_text():
                     game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
                     central = pytz.timezone('America/Chicago')
                     game_time_cst = game_time_utc.astimezone(central)
-                    game_time_str = game_time_cst.strftime('%I:%M %p CST')
+                    game_time_str = game_time_cst.strftime('%I:%M %p')
                 except:
                     game_time_str = "TBD"
             else:
                 game_time_str = "TBD"
 
-            bookmaker_tag = ""
-            if pick.get('bookmaker'):
-                bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
-
-            # Format as "Away @ Home"
-            away = pick.get('away_team', '')
-            home = pick.get('home_team', '')
+            # Format as "Away @ Home" with clean names
+            away = clean_team_name(pick.get('away_team', ''))
+            home = clean_team_name(pick.get('home_team', ''))
             if away and home:
                 matchup_display = f"{away} @ {home}"
             else:
                 matchup_display = pick['matchup']
 
-            conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
-            text += f"🔥 {game_time_str} - {pick['pick']} {pick['sportsbook_total']:.1f} - {matchup_display}{conf_tag}{bookmaker_tag}\n"
-            text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
+            conf_tag = f"({pick.get('conference', 'Other')})" if pick.get('conference') else ""
 
-        text += "═"*60 + "\n\n"
+            text += f"🔥 {pick['pick']} {pick['sportsbook_total']:.1f}\n"
+            text += f"{matchup_display} {conf_tag}\n"
+            text += f"{game_time_str} CST\n"
+            text += f"Edge: {edge:.1f} pts\n"
+            text += f"Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
+
+        text += "="*50 + "\n\n"
 
     # Display ALL games (with and without odds) in chronological order
     # Create a combined list with pending games marked
@@ -271,40 +301,37 @@ def get_picks_text():
                     # Convert to Central Time
                     central = pytz.timezone('America/Chicago')
                     game_time_cst = game_time_utc.astimezone(central)
-                    game_time_str = f" ({game_time_cst.strftime('%I:%M %p CST')})"
+                    game_time_str = game_time_cst.strftime('%I:%M %p')
                 except:
-                    pass
+                    game_time_str = "TBD"
 
-            # Get bookmaker source for this game
-            bookmaker_tag = ""
-            if pick.get('bookmaker'):
-                bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
-
-            # Format as "Away @ Home"
-            away = pick.get('away_team', '')
-            home = pick.get('home_team', '')
+            # Format as "Away @ Home" with clean names
+            away = clean_team_name(pick.get('away_team', ''))
+            home = clean_team_name(pick.get('home_team', ''))
             if away and home:
                 matchup_display = f"{away} @ {home}"
             else:
                 matchup_display = pick['matchup']
 
-            conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
-            text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {matchup_display}{conf_tag}{game_time_str}{bookmaker_tag}\n"
-            text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
+            conf_tag = f"({pick.get('conference', '')})" if pick.get('conference') else ""
+
+            text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}\n"
+            text += f"{matchup_display} {conf_tag} • {game_time_str}\n"
+            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
 
         else:  # pending game
             game = item['data']
-            text += f"⏳ PENDING - {game['matchup']}\n"
-            text += f"   Greg's Total: {game['total']:.1f} (No sportsbook odds yet)\n"
+            text += f"⏳ PENDING\n"
+            text += f"{game['matchup']}\n"
+            text += f"Greg's Total: {game['total']:.1f}\n"
 
         if i < len(all_games_list):
             text += "\n"
 
-    text += "\n" + "─"*60 + "\n"
-    text += "🔥 = UNDER ≥5 below | OVER ≥3 above\n"
-    text += "⚠️  = Within 2 pts of target\n"
-    text += f"📊 Combined from: {', '.join([b.upper() for b in bookmakers_found])}\n"
-    text += "─"*60 + "\n"
+    text += "\n" + "-"*50 + "\n"
+    text += "🔥 Strong bet (UNDER ≥5 | OVER ≥3)\n"
+    text += "⚠️  Close (within 2 pts)\n"
+    text += "-"*50 + "\n"
 
     return text
 

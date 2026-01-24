@@ -156,6 +156,7 @@ class GregsCBBParser:
     def parse_sheet(self, sheet_name: str) -> List[Dict]:
         """
         Parse a single sheet (one day's games).
+        Handles multiple column sets (B, E, H, K, N, Q, T, W, Z).
 
         Args:
             sheet_name: Name of the sheet to parse
@@ -169,28 +170,44 @@ class GregsCBBParser:
             print(f"Warning: Could not parse date from sheet name: {sheet_name}")
             return []
 
-        # Read sheet
+        # Read sheet without headers to get raw data
         try:
-            df = pd.read_excel(self.excel_file, sheet_name=sheet_name)
+            df_raw = pd.read_excel(self.excel_file, sheet_name=sheet_name, header=None)
         except Exception as e:
             print(f"Warning: Could not read sheet {sheet_name}: {e}")
             return []
 
-        # Check for required columns
-        if 'Team' not in df.columns or "Greg's Line" not in df.columns:
-            print(f"Warning: Sheet {sheet_name} missing required columns")
-            return []
-
         games = []
 
-        # Process rows in pairs
-        for i in range(0, len(df) - 1, 2):
-            row1 = df.iloc[i]
-            row2 = df.iloc[i + 1]
+        # Find all column pairs with data
+        # Columns B, E, H, K, N, Q, T, W, Z = indices 1, 4, 7, 10, 13, 16, 19, 22, 25
+        team_columns = [1, 4, 7, 10, 13, 16, 19, 22, 25]
 
-            game = self.parse_game_pair(row1, row2, game_date)
-            if game:
-                games.append(game)
+        for team_col in team_columns:
+            line_col = team_col + 1
+
+            # Check if these columns exist
+            if team_col >= len(df_raw.columns) or line_col >= len(df_raw.columns):
+                continue
+
+            # Process rows in pairs (skip header row 0)
+            for i in range(1, len(df_raw) - 1, 2):
+                team1 = df_raw.iloc[i, team_col]
+                line1 = df_raw.iloc[i, line_col]
+                team2 = df_raw.iloc[i + 1, team_col]
+                line2 = df_raw.iloc[i + 1, line_col]
+
+                # Skip if no data
+                if pd.isna(team1) or pd.isna(team2) or pd.isna(line1) or pd.isna(line2):
+                    continue
+
+                # Create mock rows for parse_game_pair
+                row1 = pd.Series({'Team': str(team1).strip(), "Greg's Line": line1})
+                row2 = pd.Series({'Team': str(team2).strip(), "Greg's Line": line2})
+
+                game = self.parse_game_pair(row1, row2, game_date)
+                if game:
+                    games.append(game)
 
         return games
 

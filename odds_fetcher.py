@@ -29,6 +29,88 @@ class OddsFetcher:
         self.api_key = api_key or os.environ.get('ODDS_API_KEY')
         self.base_url = "https://api.the-odds-api.com/v4"
 
+    def fetch_ncaab_odds_all_bookmakers(self) -> List[Dict]:
+        """
+        Fetch NCAA Basketball odds from ALL bookmakers in a single API request.
+        More efficient than calling fetch_ncaab_odds() multiple times.
+
+        Returns:
+            List of games with odds from all available bookmakers
+        """
+        if not self.api_key:
+            print("ERROR: No API key provided. Set ODDS_API_KEY environment variable")
+            return []
+
+        print(f"Using API key: {self.api_key[:8]}...{self.api_key[-4:]}")
+
+        endpoint = f"{self.base_url}/sports/basketball_ncaab/odds"
+
+        # Don't specify bookmakers parameter to get ALL bookmakers
+        params = {
+            'apiKey': self.api_key,
+            'regions': 'us',
+            'markets': 'h2h,spreads,totals',
+            'oddsFormat': 'american'
+        }
+
+        print(f"Fetching odds from: {endpoint}")
+        print(f"Getting ALL US bookmakers in single request")
+
+        try:
+            response = requests.get(endpoint, params=params, timeout=30)
+            print(f"API Response Status: {response.status_code}")
+
+            if response.status_code == 401:
+                print("ERROR: 401 Unauthorized - API key is invalid")
+                return []
+            elif response.status_code == 429:
+                print("ERROR: 429 Rate limit exceeded - API quota exhausted")
+                return []
+
+            response.raise_for_status()
+            games = response.json()
+
+            # Parse and structure the data
+            structured_games = []
+
+            for game in games:
+                home_team = game.get('home_team', '')
+                away_team = game.get('away_team', '')
+                commence_time = game.get('commence_time', '')
+
+                # Get bookmakers data
+                bookmakers_data = game.get('bookmakers', [])
+
+                # Process each bookmaker's odds for this game
+                for bookmaker_info in bookmakers_data:
+                    bookmaker_name = bookmaker_info.get('key', '')
+                    markets = bookmaker_info.get('markets', [])
+
+                    # Extract totals
+                    total = None
+                    for market in markets:
+                        if market.get('key') == 'totals':
+                            outcomes = market.get('outcomes', [])
+                            if outcomes:
+                                total = outcomes[0].get('point')  # Over/Under line
+                                break
+
+                    if total:
+                        structured_games.append({
+                            'home_team': home_team,
+                            'away_team': away_team,
+                            'commence_time': commence_time,
+                            'total': total,
+                            'source_bookmaker': bookmaker_name
+                        })
+
+            print(f"✓ Fetched {len(structured_games)} game-bookmaker combinations")
+            return structured_games
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching odds: {e}")
+            return []
+
     def fetch_ncaab_odds(self, bookmaker: str = 'bet365') -> List[Dict]:
         """
         Fetch NCAA Basketball odds.

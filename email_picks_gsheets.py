@@ -100,23 +100,14 @@ def get_picks_text():
                 games = all_games[:10]  # Just show some games
                 print(f"No future games found, showing sample of {len(games)} games")
 
-    # Get odds - try ALL bookmakers and combine them
+    # Get odds from ALL bookmakers in a SINGLE API request (saves credits!)
     fetcher = OddsFetcher()
 
-    bookmakers = ['fanduel', 'draftkings', 'bet365', 'betmgm', 'williamhill_us', 'pointsbet', 'betrivers', 'unibet']
-    all_sportsbook_data = []
-    bookmakers_found = []
+    print(f"Fetching odds from ALL bookmakers in single API request...")
+    all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers()
 
-    for bookmaker in bookmakers:
-        print(f"Trying {bookmaker}...")
-        data = fetcher.fetch_ncaab_odds(bookmaker)
-        if data:
-            # Add bookmaker name to each game
-            for game in data:
-                game['source_bookmaker'] = bookmaker
-            all_sportsbook_data.extend(data)
-            bookmakers_found.append(bookmaker)
-            print(f"✓ Got {len(data)} games from {bookmaker}")
+    # Get list of unique bookmakers found
+    bookmakers_found = list(set(game['source_bookmaker'] for game in all_sportsbook_data if game.get('source_bookmaker')))
 
     if not all_sportsbook_data:
         print(f"ℹ️  No sportsbook odds available from any source")

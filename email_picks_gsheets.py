@@ -61,10 +61,16 @@ def get_picks_text():
 
     # Parse
     parser = GregsCBBParser(file_path)
+    parser.load_file()
+
+    print(f"DEBUG - Sheet names in Greg's file: {parser.excel_file.sheet_names}")
+
     all_games = parser.parse_all_sheets()
 
     if not all_games:
         return "❌ No games found in Greg's sheet"
+
+    print(f"DEBUG - Total games parsed from all sheets: {len(all_games)}")
 
     # Get today's games only
     from datetime import timedelta

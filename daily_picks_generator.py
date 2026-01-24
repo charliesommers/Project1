@@ -6,6 +6,7 @@ FOCUS: Totals only (Over/Under), no spread betting
 import pandas as pd
 from typing import Dict, List, Optional
 from datetime import datetime
+from team_conferences import get_conference
 
 
 class DailyPicksGenerator:
@@ -88,6 +89,11 @@ class DailyPicksGenerator:
                 elif edge >= 4:
                     confidence = 'medium-high'
 
+            # Get conference (try both teams, prefer favorite)
+            conference = get_conference(gregs_game['favorite'])
+            if conference == 'Other':
+                conference = get_conference(gregs_game['underdog'])
+
             picks.append({
                 'date': gregs_game['date'],
                 'matchup': gregs_game['matchup'],
@@ -100,7 +106,8 @@ class DailyPicksGenerator:
                 'confidence': confidence,
                 'reasoning': self._get_reasoning(pick, edge),
                 'game_time': sportsbook_game.get('commence_time', ''),
-                'bookmaker': sportsbook_game.get('source_bookmaker', '')
+                'bookmaker': sportsbook_game.get('source_bookmaker', ''),
+                'conference': conference
             })
 
         # Sort by absolute edge (biggest edges first)

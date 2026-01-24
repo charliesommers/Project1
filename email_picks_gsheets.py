@@ -203,7 +203,8 @@ def get_picks_text():
             if pick.get('bookmaker'):
                 bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
 
-            text += f"🔥 {game_time_str} - {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{bookmaker_tag}\n"
+            conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
+            text += f"🔥 {game_time_str} - {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{conf_tag}{bookmaker_tag}\n"
             text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
 
         text += "═"*60 + "\n\n"
@@ -242,7 +243,8 @@ def get_picks_text():
         if pick.get('bookmaker'):
             bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
 
-        text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}{bookmaker_tag}\n"
+        conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
+        text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{conf_tag}{game_time_str}{bookmaker_tag}\n"
         text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
         if i < len(picks_with_odds):
             text += "\n"

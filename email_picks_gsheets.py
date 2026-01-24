@@ -134,6 +134,17 @@ def get_picks_text():
 
     print(f"✓ Total combined: {len(all_sportsbook_data)} games from {len(bookmakers_found)} bookmakers")
 
+    # Debug: Show what we're trying to match
+    print(f"\nDEBUG - Greg's games ({len(games)}):")
+    for game in games[:5]:
+        print(f"  {game['matchup']}")
+
+    print(f"\nDEBUG - Sportsbook games ({len(all_sportsbook_data)}):")
+    for game in all_sportsbook_data[:5]:
+        home = game.get('home_team', '')
+        away = game.get('away_team', '')
+        print(f"  {away} @ {home}")
+
     # Generate picks for games WITH odds
     generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
     picks_with_odds = generator.generate_picks(games, all_sportsbook_data)
@@ -146,7 +157,14 @@ def get_picks_text():
     games_with_picks = set(pick['matchup'] for pick in picks_with_odds)
     games_without_odds = [game for game in games if game['matchup'] not in games_with_picks]
 
-    print(f"Games with odds: {len(picks_with_odds)}, Games without odds: {len(games_without_odds)}")
+    print(f"\nMATCHING RESULTS:")
+    print(f"✓ Games with odds: {len(picks_with_odds)}")
+    print(f"✗ Games without odds: {len(games_without_odds)}")
+
+    if games_without_odds:
+        print(f"\nGames that didn't match:")
+        for game in games_without_odds[:10]:
+            print(f"  - {game['matchup']}")
 
     # Format as text
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n"

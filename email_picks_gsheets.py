@@ -53,28 +53,40 @@ def download_gregs_sheet(output_path="data/gregs_lines_latest.xlsx"):
 
 def clean_team_name(team_name: str) -> str:
     """Remove mascots from team names for cleaner display."""
+    # Multi-word mascots first (longer patterns)
     mascots = [
+        'blue devils', 'crimson tide', 'fighting irish', 'golden eagles', 'golden gophers',
+        'nittany lions', 'ragin cajuns', 'red flash', 'red raiders', 'red storm',
+        'river hawks', 'sun devils', 'tar heels',
+        # Single-word mascots
         'aggies', 'aztecs', 'badgers', 'bears', 'bearcats', 'beavers', 'bengals',
-        'blue devils', 'bobcats', 'broncos', 'bruins', 'buccaneers', 'buckeyes',
-        'buffalo', 'bulldogs', 'cardinals', 'chanticleers', 'cougars', 'cowboys',
-        'crimson tide', 'crusaders', 'cyclones', 'demons', 'ducks', 'eagles',
-        'falcons', 'fighting irish', 'gators', 'golden eagles', 'golden gophers',
-        'grizzlies', 'hawkeyes', 'hilltoppers', 'hokies', 'hornets', 'huskies',
-        'hurricanes', 'jayhawks', 'knights', 'lancers', 'lions', 'lobos',
-        'miners', 'mountaineers', 'musketeers', 'nittany lions', 'orangemen',
-        'owls', 'panthers', 'pirates', 'ragin cajuns', 'ramblers', 'rams',
-        'razorbacks', 'red flash', 'red raiders', 'red storm', 'rebels',
-        'river hawks', 'salukis', 'seminoles', 'sharks', 'skyhawks', 'sooners',
-        'spartans', 'sun devils', 'tar heels', 'terrapins', 'tigers', 'titans',
-        'trojans', 'utes', 'volunteers', 'wildcats', 'wolverines', 'wolfpack'
+        'bobcats', 'broncos', 'bruins', 'buccaneers', 'buckeyes', 'buffalo',
+        'bulldogs', 'cardinals', 'chanticleers', 'cougars', 'cowboys', 'crusaders',
+        'cyclones', 'demons', 'ducks', 'eagles', 'falcons', 'gators', 'grizzlies',
+        'hawkeyes', 'hilltoppers', 'hokies', 'hornets', 'huskies', 'hurricanes',
+        'jayhawks', 'knights', 'lancers', 'lions', 'lobos', 'miners', 'mountaineers',
+        'musketeers', 'orangemen', 'owls', 'panthers', 'pirates', 'ramblers', 'rams',
+        'razorbacks', 'rebels', 'salukis', 'seminoles', 'sharks', 'skyhawks',
+        'sooners', 'spartans', 'terrapins', 'tigers', 'titans', 'trojans', 'utes',
+        'volunteers', 'wildcats', 'wolverines', 'wolfpack'
     ]
 
     name = team_name.strip()
     name_lower = name.lower()
 
+    # Try to remove mascots (check both at end and in middle)
     for mascot in mascots:
-        if name_lower.endswith(mascot):
-            name = name[:-(len(mascot))].strip()
+        # Pattern: "Team Mascot" -> "Team"
+        if name_lower.endswith(' ' + mascot):
+            name = name[:-(len(mascot) + 1)].strip()
+            break
+        # Pattern: "Mascot of Team" or standalone mascot
+        elif name_lower == mascot:
+            # Keep as is if it's ONLY the mascot (no team name)
+            break
+        # Pattern: "Team (Mascot)"
+        elif f' ({mascot})' in name_lower:
+            name = name.replace(f' ({mascot})', '').replace(f' ({mascot.title()})', '').strip()
             break
 
     return name

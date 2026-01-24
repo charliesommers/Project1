@@ -134,28 +134,27 @@ def get_picks_text():
 
     print(f"✓ Total combined: {len(all_sportsbook_data)} games from {len(bookmakers_found)} bookmakers")
 
-    # Generate picks for ALL games
+    # Generate picks for games WITH odds
     generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
-    all_picks = generator.generate_picks(games, all_sportsbook_data)
+    picks_with_odds = generator.generate_picks(games, all_sportsbook_data)
 
     # Sort by absolute edge (biggest edges first)
-    if all_picks:
-        all_picks.sort(key=lambda x: abs(x['edge']), reverse=True)
+    if picks_with_odds:
+        picks_with_odds.sort(key=lambda x: abs(x['edge']), reverse=True)
+
+    # Find games WITHOUT odds
+    games_with_picks = set(pick['matchup'] for pick in picks_with_odds)
+    games_without_odds = [game for game in games if game['matchup'] not in games_with_picks]
+
+    print(f"Games with odds: {len(picks_with_odds)}, Games without odds: {len(games_without_odds)}")
 
     # Format as text
-    if not all_picks:
-        return f"""
-📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS
-
-❌ No games with odds available
-
-Strategy: UNDER ≥5 below | OVER ≥3 above
-"""
-
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n"
-    text += f"📊 Odds from: {', '.join([b.upper() for b in bookmakers_found])}\n\n"
+    text += f"📊 Odds from: {', '.join([b.upper() for b in bookmakers_found])}\n"
+    text += f"📋 Games: {len(picks_with_odds)} with odds, {len(games_without_odds)} pending\n\n"
 
-    for i, pick in enumerate(all_picks, 1):
+    # Display games WITH odds first
+    for i, pick in enumerate(picks_with_odds, 1):
         edge = abs(pick['edge'])
 
         # Determine emoji (no text, just emoji)
@@ -190,8 +189,17 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
 
         text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}{bookmaker_tag}\n"
         text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
-        if i < len(all_picks):
+        if i < len(picks_with_odds):
             text += "\n"
+
+    # Display games WITHOUT odds at the bottom
+    if games_without_odds:
+        text += "\n" + "─"*60 + "\n"
+        text += "⏳ PENDING ODDS (Greg's lines only)\n\n"
+
+        for game in sorted(games_without_odds, key=lambda x: x['total'], reverse=True):
+            text += f"📌 {game['matchup']}\n"
+            text += f"   Greg's Total: {game['total']:.1f} (No sportsbook odds yet)\n\n"
 
     text += "\n" + "─"*60 + "\n"
     text += "🔥 = UNDER ≥5 below | OVER ≥3 above\n"

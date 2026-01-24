@@ -103,7 +103,7 @@ def get_picks_text():
     # Get odds - try ALL bookmakers and combine them
     fetcher = OddsFetcher()
 
-    bookmakers = ['fanduel', 'draftkings', 'bet365', 'betmgm']
+    bookmakers = ['fanduel', 'draftkings', 'bet365', 'betmgm', 'williamhill_us', 'pointsbet', 'betrivers', 'unibet']
     all_sportsbook_data = []
     bookmakers_found = []
 
@@ -155,9 +155,17 @@ def get_picks_text():
     generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
     picks_with_odds = generator.generate_picks(games, all_sportsbook_data)
 
-    # Sort by absolute edge (biggest edges first)
+    # Sort by game time (chronological order)
     if picks_with_odds:
-        picks_with_odds.sort(key=lambda x: abs(x['edge']), reverse=True)
+        # Sort by game time, putting games without time at the end
+        picks_with_odds.sort(key=lambda x: x.get('game_time', 'ZZZ'))
+
+    # Separate top picks (flame emoji worthy)
+    top_picks = []
+    for pick in picks_with_odds:
+        edge = abs(pick['edge'])
+        if (pick['pick'] == 'UNDER' and edge >= 5.0) or (pick['pick'] == 'OVER' and edge >= 3.0):
+            top_picks.append(pick)
 
     # Find games WITHOUT odds
     games_with_picks = set(pick['matchup'] for pick in picks_with_odds)
@@ -177,7 +185,39 @@ def get_picks_text():
     text += f"📊 Odds from: {', '.join([b.upper() for b in bookmakers_found])}\n"
     text += f"📋 Games: {len(picks_with_odds)} with odds, {len(games_without_odds)} pending\n\n"
 
-    # Display games WITH odds first
+    # Display TOP PICKS section (flame-worthy bets in chronological order)
+    if top_picks:
+        text += "═"*60 + "\n"
+        text += "🔥 TOP PICKS (Sorted by Game Time)\n"
+        text += "═"*60 + "\n\n"
+
+        for pick in top_picks:
+            edge = abs(pick['edge'])
+
+            # Format game time
+            game_time_str = ""
+            if pick.get('game_time'):
+                try:
+                    import pytz
+                    game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
+                    central = pytz.timezone('America/Chicago')
+                    game_time_cst = game_time_utc.astimezone(central)
+                    game_time_str = game_time_cst.strftime('%I:%M %p CST')
+                except:
+                    game_time_str = "TBD"
+            else:
+                game_time_str = "TBD"
+
+            bookmaker_tag = ""
+            if pick.get('bookmaker'):
+                bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
+
+            text += f"🔥 {game_time_str} - {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{bookmaker_tag}\n"
+            text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
+
+        text += "═"*60 + "\n\n"
+
+    # Display ALL games WITH odds (chronological order)
     for i, pick in enumerate(picks_with_odds, 1):
         edge = abs(pick['edge'])
 

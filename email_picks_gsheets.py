@@ -252,10 +252,8 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            conf_tag = f"({pick.get('conference', 'Other')})" if pick.get('conference') else ""
-
             text += f"🔥 {pick['pick']} {pick['sportsbook_total']:.1f}\n"
-            text += f"{matchup_display} {conf_tag}\n"
+            text += f"{matchup_display}\n"
             text += f"{game_time_str} CST\n"
             text += f"Edge: {edge:.1f} pts\n"
             text += f"Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
@@ -325,10 +323,8 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            conf_tag = f"({pick.get('conference', '')})" if pick.get('conference') else ""
-
             text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}\n"
-            text += f"{matchup_display} {conf_tag} • {game_time_str}\n"
+            text += f"{matchup_display} • {game_time_str}\n"
             text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
 
         else:  # pending game

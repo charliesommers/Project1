@@ -206,60 +206,99 @@ def get_picks_text():
             if pick.get('bookmaker'):
                 bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
 
+            # Format as "Away @ Home"
+            away = pick.get('away_team', '')
+            home = pick.get('home_team', '')
+            if away and home:
+                matchup_display = f"{away} @ {home}"
+            else:
+                matchup_display = pick['matchup']
+
             conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
-            text += f"🔥 {game_time_str} - {pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{conf_tag}{bookmaker_tag}\n"
+            text += f"🔥 {game_time_str} - {pick['pick']} {pick['sportsbook_total']:.1f} - {matchup_display}{conf_tag}{bookmaker_tag}\n"
             text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
 
         text += "═"*60 + "\n\n"
 
-    # Display ALL games WITH odds (chronological order)
-    for i, pick in enumerate(picks_with_odds, 1):
-        edge = abs(pick['edge'])
+    # Display ALL games (with and without odds) in chronological order
+    # Create a combined list with pending games marked
+    all_games_list = []
 
-        # Determine emoji (no text, just emoji)
-        emoji = ""
-        if pick['pick'] == 'UNDER' and edge >= 5.0:
-            emoji = "🔥 "
-        elif pick['pick'] == 'OVER' and edge >= 3.0:
-            emoji = "🔥 "
-        elif pick['pick'] == 'UNDER' and edge >= 3.0:
-            emoji = "⚠️  "
-        elif pick['pick'] == 'OVER' and edge >= 1.0:
-            emoji = "⚠️  "
+    # Add games with odds
+    for pick in picks_with_odds:
+        all_games_list.append({
+            'type': 'with_odds',
+            'data': pick,
+            'sort_time': pick.get('game_time', 'ZZZ'),
+            'sort_team': pick.get('away_team', '').lower()
+        })
 
-        # Format game time
-        game_time_str = ""
-        if pick.get('game_time'):
-            try:
-                import pytz
-                # Parse ISO format time
-                game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
-                # Convert to Central Time
-                central = pytz.timezone('America/Chicago')
-                game_time_cst = game_time_utc.astimezone(central)
-                game_time_str = f" ({game_time_cst.strftime('%I:%M %p CST')})"
-            except:
-                pass
+    # Add games without odds (pending)
+    for game in games_without_odds:
+        all_games_list.append({
+            'type': 'pending',
+            'data': game,
+            'sort_time': 'ZZZ',  # Put pending at the end
+            'sort_team': game['underdog'].lower()  # Sort by underdog
+        })
 
-        # Get bookmaker source for this game
-        bookmaker_tag = ""
-        if pick.get('bookmaker'):
-            bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
+    # Sort combined list by time, then away team
+    all_games_list.sort(key=lambda x: (x['sort_time'], x['sort_team']))
 
-        conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
-        text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{conf_tag}{game_time_str}{bookmaker_tag}\n"
-        text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
-        if i < len(picks_with_odds):
+    for i, item in enumerate(all_games_list, 1):
+        if item['type'] == 'with_odds':
+            pick = item['data']
+            edge = abs(pick['edge'])
+
+            # Determine emoji (no text, just emoji)
+            emoji = ""
+            if pick['pick'] == 'UNDER' and edge >= 5.0:
+                emoji = "🔥 "
+            elif pick['pick'] == 'OVER' and edge >= 3.0:
+                emoji = "🔥 "
+            elif pick['pick'] == 'UNDER' and edge >= 3.0:
+                emoji = "⚠️  "
+            elif pick['pick'] == 'OVER' and edge >= 1.0:
+                emoji = "⚠️  "
+
+            # Format game time
+            game_time_str = ""
+            if pick.get('game_time'):
+                try:
+                    import pytz
+                    # Parse ISO format time
+                    game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
+                    # Convert to Central Time
+                    central = pytz.timezone('America/Chicago')
+                    game_time_cst = game_time_utc.astimezone(central)
+                    game_time_str = f" ({game_time_cst.strftime('%I:%M %p CST')})"
+                except:
+                    pass
+
+            # Get bookmaker source for this game
+            bookmaker_tag = ""
+            if pick.get('bookmaker'):
+                bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
+
+            # Format as "Away @ Home"
+            away = pick.get('away_team', '')
+            home = pick.get('home_team', '')
+            if away and home:
+                matchup_display = f"{away} @ {home}"
+            else:
+                matchup_display = pick['matchup']
+
+            conf_tag = f" ({pick.get('conference', 'Other')})" if pick.get('conference') else ""
+            text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {matchup_display}{conf_tag}{game_time_str}{bookmaker_tag}\n"
+            text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
+
+        else:  # pending game
+            game = item['data']
+            text += f"⏳ PENDING - {game['matchup']}\n"
+            text += f"   Greg's Total: {game['total']:.1f} (No sportsbook odds yet)\n"
+
+        if i < len(all_games_list):
             text += "\n"
-
-    # Display games WITHOUT odds at the bottom
-    if games_without_odds:
-        text += "\n" + "─"*60 + "\n"
-        text += "⏳ PENDING ODDS (Greg's lines only)\n\n"
-
-        for game in sorted(games_without_odds, key=lambda x: x['total'], reverse=True):
-            text += f"📌 {game['matchup']}\n"
-            text += f"   Greg's Total: {game['total']:.1f} (No sportsbook odds yet)\n\n"
 
     text += "\n" + "─"*60 + "\n"
     text += "🔥 = UNDER ≥5 below | OVER ≥3 above\n"

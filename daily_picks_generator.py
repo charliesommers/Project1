@@ -99,7 +99,8 @@ class DailyPicksGenerator:
                 'edge': edge,
                 'confidence': confidence,
                 'reasoning': self._get_reasoning(pick, edge),
-                'game_time': sportsbook_game.get('commence_time', '')
+                'game_time': sportsbook_game.get('commence_time', ''),
+                'bookmaker': sportsbook_game.get('source_bookmaker', '')
             })
 
         # Sort by absolute edge (biggest edges first)

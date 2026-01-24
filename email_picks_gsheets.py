@@ -94,27 +94,28 @@ def get_picks_text():
                 games = all_games[:10]  # Just show some games
                 print(f"No future games found, showing sample of {len(games)} games")
 
-    # Get odds - try multiple bookmakers
+    # Get odds - try ALL bookmakers and combine them
     fetcher = OddsFetcher()
 
-    # Try multiple bookmakers in order of preference
     bookmakers = ['fanduel', 'draftkings', 'bet365', 'betmgm']
-    sportsbook_data = None
-    bookmaker_used = None
+    all_sportsbook_data = []
+    bookmakers_found = []
 
     for bookmaker in bookmakers:
         print(f"Trying {bookmaker}...")
-        sportsbook_data = fetcher.fetch_ncaab_odds(bookmaker)
-        if sportsbook_data:
-            bookmaker_used = bookmaker
-            print(f"✓ Got odds from {bookmaker}")
-            break
+        data = fetcher.fetch_ncaab_odds(bookmaker)
+        if data:
+            # Add bookmaker name to each game
+            for game in data:
+                game['source_bookmaker'] = bookmaker
+            all_sportsbook_data.extend(data)
+            bookmakers_found.append(bookmaker)
+            print(f"✓ Got {len(data)} games from {bookmaker}")
 
-    # If no sportsbook odds available, show Greg's lines only
-    if not sportsbook_data:
-        print(f"ℹ️  No Bet365 odds available - showing Greg's lines only")
+    if not all_sportsbook_data:
+        print(f"ℹ️  No sportsbook odds available from any source")
         text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"
-        text += f"⚠️  No Bet365 odds available right now\n"
+        text += f"⚠️  No sportsbook odds available right now\n"
         text += f"Total games from Greg: {len(games)}\n\n"
 
         # Show top games sorted by total
@@ -131,9 +132,11 @@ def get_picks_text():
         text += "─"*60 + "\n"
         return text
 
-    # Generate picks for ALL games (sorted by edge later)
+    print(f"✓ Total combined: {len(all_sportsbook_data)} games from {len(bookmakers_found)} bookmakers")
+
+    # Generate picks for ALL games
     generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
-    all_picks = generator.generate_picks(games, sportsbook_data)
+    all_picks = generator.generate_picks(games, all_sportsbook_data)
 
     # Sort by absolute edge (biggest edges first)
     if all_picks:
@@ -150,7 +153,7 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
 """
 
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - CBB TOTALS PICKS\n"
-    text += f"📊 Odds from: {bookmaker_used.upper()}\n\n"
+    text += f"📊 Odds from: {', '.join([b.upper() for b in bookmakers_found])}\n\n"
 
     for i, pick in enumerate(all_picks, 1):
         edge = abs(pick['edge'])
@@ -180,7 +183,12 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
             except:
                 pass
 
-        text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}\n"
+        # Get bookmaker source for this game
+        bookmaker_tag = ""
+        if pick.get('bookmaker'):
+            bookmaker_tag = f" [{pick['bookmaker'].upper()}]"
+
+        text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} - {pick['matchup']}{game_time_str}{bookmaker_tag}\n"
         text += f"   Edge: {edge:.1f} pts | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
         if i < len(all_picks):
             text += "\n"
@@ -188,7 +196,7 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
     text += "\n" + "─"*60 + "\n"
     text += "🔥 = UNDER ≥5 below | OVER ≥3 above\n"
     text += "⚠️  = Within 2 pts of target\n"
-    text += f"📊 Sportsbook: {bookmaker_used.upper()}\n"
+    text += f"📊 Combined from: {', '.join([b.upper() for b in bookmakers_found])}\n"
     text += "─"*60 + "\n"
 
     return text

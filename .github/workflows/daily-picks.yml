@@ -3,6 +3,7 @@ name: Daily CBB Picks Email
 on:
   schedule:
     # Runs at 11:30 UTC (5:30 AM CST) every day
+    # Updated to ensure scheduled runs are enabled
     - cron: '30 11 * * *'
   workflow_dispatch:  # Allows manual trigger
 

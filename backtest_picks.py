@@ -16,9 +16,16 @@ import os
 import sys
 import requests
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from gregs_cbb_parser import GregsCBBParser
 from scores_fetcher import ScoresFetcher
+
+# Try to import historical odds scraper (optional)
+try:
+    from historical_odds_scraper import HistoricalOddsScraper
+    HAS_HISTORICAL_ODDS = True
+except ImportError:
+    HAS_HISTORICAL_ODDS = False
 
 
 # Greg's Google Sheets ID (from VSIN website)
@@ -78,13 +85,35 @@ def calculate_accuracy_metrics(matches: List[Dict]) -> Dict:
     }
 
 
-def backtest_season(start_date: datetime, end_date: datetime):
-    """Analyze Greg's prediction accuracy for a date range."""
+def backtest_season(start_date: datetime, end_date: datetime, try_historical_odds: bool = True):
+    """
+    Analyze Greg's picks for a date range.
 
-    print("🏀 GREG'S CBB TOTALS ACCURACY ANALYSIS")
+    If historical odds are available, calculates actual betting results.
+    Otherwise, shows prediction accuracy analysis.
+
+    Args:
+        start_date: Start date for analysis
+        end_date: End date for analysis
+        try_historical_odds: Whether to attempt fetching historical odds (free scraping)
+    """
+
+    # Check if we can get historical odds
+    use_odds = try_historical_odds and HAS_HISTORICAL_ODDS
+
+    if use_odds:
+        print("🏀 GREG'S CBB PICKS BACKTEST (With Historical Odds)")
+    else:
+        print("🏀 GREG'S CBB TOTALS ACCURACY ANALYSIS")
+
     print("=" * 80)
     print(f"Date Range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-    print(f"Analysis: Prediction accuracy vs actual game totals")
+
+    if use_odds:
+        print(f"Mode: Backtesting with actual betting lines (scraped from Covers.com)")
+    else:
+        print(f"Mode: Prediction accuracy vs actual game totals")
+
     print("=" * 80)
     print()
 
@@ -144,6 +173,158 @@ def backtest_season(start_date: datetime, end_date: datetime):
     if len(matches) == 0:
         print("❌ No games matched - cannot run analysis")
         return
+
+    # Try to fetch historical odds if enabled
+    historical_odds = {}
+    if use_odds:
+        print("📈 Fetching historical betting lines from Covers.com...")
+        try:
+            scraper = HistoricalOddsScraper()
+            historical_odds = scraper.fetch_odds_range(start_date, end_date)
+            total_games_with_odds = sum(len(games) for games in historical_odds.values())
+            print(f"✓ Found betting lines for {total_games_with_odds} games across {len(historical_odds)} dates")
+
+            if total_games_with_odds == 0:
+                print("⚠️  No historical odds found - falling back to accuracy analysis")
+                use_odds = False
+
+        except Exception as e:
+            print(f"⚠️  Could not fetch historical odds: {e}")
+            print("   Falling back to accuracy analysis")
+            use_odds = False
+
+        print()
+
+    # Match games with historical odds if available
+    if use_odds:
+        # Run betting backtest
+        run_betting_backtest(matches, historical_odds)
+    else:
+        # Run accuracy analysis
+        run_accuracy_analysis(matches)
+
+
+def run_betting_backtest(matches: List[Dict], historical_odds: Dict[str, List[Dict]]):
+    """Run backtest using actual historical betting lines."""
+
+    print("🔥 FLAME EMOJI PICKS BACKTEST")
+    print("=" * 80)
+    print()
+
+    # Match each game with its historical odds
+    picks = []
+
+    for match in matches:
+        date_str = match['date'].strftime('%Y-%m-%d')
+        if date_str not in historical_odds:
+            continue
+
+        # Find matching odds for this game
+        for odds_game in historical_odds[date_str]:
+            # Try to match teams
+            if (match['gregs_game']['favorite'].lower() in odds_game.get('matchup', '').lower() or
+                match['gregs_game']['underdog'].lower() in odds_game.get('matchup', '').lower()):
+
+                total_line = odds_game.get('total')
+                if not total_line:
+                    continue
+
+                gregs_total = match['gregs_total']
+                actual_total = match['actual_total']
+                diff = gregs_total - total_line
+
+                # Apply flame emoji methodology
+                # UNDER: Greg ≥5 below sportsbook
+                if diff <= -5.0:
+                    pick_wins = actual_total < total_line
+                    picks.append({
+                        **match,
+                        'pick': 'UNDER',
+                        'sportsbook_total': total_line,
+                        'edge': diff,
+                        'wins': pick_wins
+                    })
+
+                # OVER: Greg ≥3 above sportsbook
+                elif diff >= 3.0:
+                    pick_wins = actual_total > total_line
+                    picks.append({
+                        **match,
+                        'pick': 'OVER',
+                        'sportsbook_total': total_line,
+                        'edge': diff,
+                        'wins': pick_wins
+                    })
+
+                break  # Found match, move to next game
+
+    if not picks:
+        print("❌ No flame emoji picks found in this date range")
+        return
+
+    # Calculate results
+    wins = sum(1 for p in picks if p['wins'])
+    losses = len(picks) - wins
+    win_pct = (wins / len(picks)) * 100
+
+    # At -110 odds
+    profit_per_win = 100
+    loss_per_loss = 110
+    total_profit = wins * profit_per_win - losses * loss_per_loss
+    total_risked = len(picks) * 110
+    roi = (total_profit / total_risked) * 100 if total_risked > 0 else 0
+
+    print(f"📊 OVERALL RESULTS")
+    print(f"Total Picks: {len(picks)}")
+    print(f"Record: {wins}-{losses} ({win_pct:.1f}%)")
+    print(f"Profit/Loss: ${total_profit:+.2f} (risking $110 per game)")
+    print(f"ROI: {roi:+.2f}%")
+    print(f"Breakeven: 52.4% win rate needed at -110 odds")
+    print()
+
+    # Breakdown by pick type
+    under_picks = [p for p in picks if p['pick'] == 'UNDER']
+    over_picks = [p for p in picks if p['pick'] == 'OVER']
+
+    if under_picks:
+        u_wins = sum(1 for p in under_picks if p['wins'])
+        u_losses = len(under_picks) - u_wins
+        u_pct = (u_wins / len(under_picks)) * 100
+        u_profit = u_wins * 100 - u_losses * 110
+        u_roi = (u_profit / (len(under_picks) * 110)) * 100 if under_picks else 0
+
+        print(f"🔵 UNDER PICKS (Greg ≥5 below sportsbook)")
+        print(f"Count: {len(under_picks)}")
+        print(f"Record: {u_wins}-{u_losses} ({u_pct:.1f}%)")
+        print(f"P/L: ${u_profit:+.2f} | ROI: {u_roi:+.2f}%")
+        print()
+
+    if over_picks:
+        o_wins = sum(1 for p in over_picks if p['wins'])
+        o_losses = len(over_picks) - o_wins
+        o_pct = (o_wins / len(over_picks)) * 100
+        o_profit = o_wins * 100 - o_losses * 110
+        o_roi = (o_profit / (len(over_picks) * 110)) * 100 if over_picks else 0
+
+        print(f"🔴 OVER PICKS (Greg ≥3 above sportsbook)")
+        print(f"Count: {len(over_picks)}")
+        print(f"Record: {o_wins}-{o_losses} ({o_pct:.1f}%)")
+        print(f"P/L: ${o_profit:+.2f} | ROI: {o_roi:+.2f}%")
+        print()
+
+    # Sample picks
+    print("📋 SAMPLE PICKS (first 10)")
+    print("=" * 80)
+    for i, pick in enumerate(picks[:10], 1):
+        result = "✓ WIN" if pick['wins'] else "✗ LOSS"
+        print(f"{i}. {pick['matchup']} - {pick['date'].strftime('%m/%d')}")
+        print(f"   Greg: {pick['gregs_total']:.1f} | Line: {pick['sportsbook_total']:.1f} | Actual: {pick['actual_total']}")
+        print(f"   {pick['pick']} {pick['sportsbook_total']:.1f} | Edge: {pick['edge']:+.1f} | {result}")
+        print()
+
+
+def run_accuracy_analysis(matches: List[Dict]):
+    """Run prediction accuracy analysis (no historical odds)."""
 
     # Calculate overall accuracy metrics
     print("📊 OVERALL ACCURACY")

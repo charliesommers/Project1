@@ -121,12 +121,7 @@ def backtest_season(start_date: datetime, end_date: datetime):
     print("🏈 Fetching completed game scores from ESPN...")
     fetcher = ScoresFetcher()
 
-    all_completed_games = []
-    current_date = start_date
-    while current_date <= end_date:
-        completed = fetcher.fetch_completed_games(current_date)
-        all_completed_games.extend(completed)
-        current_date += timedelta(days=1)
+    all_completed_games = fetcher.fetch_scores_range(start_date, end_date)
 
     print(f"✓ Found {len(all_completed_games)} completed games with scores")
     print()

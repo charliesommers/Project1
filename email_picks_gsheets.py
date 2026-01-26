@@ -241,8 +241,19 @@ def get_picks_text():
 
             print(f"✓ Total ESPN games fetched: {len(espn_schedule)}")
 
+            # If ESPN didn't get many games, try Sports-Reference (comprehensive D1 coverage)
+            if len(espn_schedule) < 10:
+                print(f"\n  ESPN coverage limited - fetching from Sports-Reference for complete schedule...")
+                for game_date in pending_dates:
+                    print(f"  Fetching Sports-Reference schedule for {game_date.strftime('%Y-%m-%d')}...")
+                    sr_schedule = espn_fetcher.fetch_schedule_from_sportsref(datetime.combine(game_date, datetime.min.time()))
+                    espn_schedule.extend(sr_schedule)
+                    print(f"    Found {len(sr_schedule)} games on Sports-Reference for this date")
+
+                print(f"✓ Total games from all sources: {len(espn_schedule)}")
+
             if len(espn_schedule) == 0:
-                print("  ⚠️  ESPN returned no games - times will show as TBD")
+                print("  ⚠️  No games found from any source - times will show as TBD")
 
             # Try to match pending games with ESPN schedule to get game times and home/away teams
             matched_count = 0

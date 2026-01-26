@@ -21,6 +21,7 @@ class ScoresFetcher:
         self.api_key = api_key
         self.base_url = "https://api.the-odds-api.com/v4"
         self.espn_base = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball"
+        self.sr_base = "https://www.sports-reference.com/cbb"
 
     def fetch_schedule_from_espn(self, date: datetime) -> List[Dict]:
         """
@@ -58,6 +59,109 @@ class ScoresFetcher:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching schedule from ESPN: {e}")
             return []
+
+    def fetch_schedule_from_sportsref(self, date: datetime) -> List[Dict]:
+        """
+        Fetch game schedule from Sports-Reference (comprehensive D1 coverage).
+
+        Args:
+            date: Date to fetch schedule for
+
+        Returns:
+            List of all games with times from Sports-Reference
+        """
+        from bs4 import BeautifulSoup
+
+        # Sports-Reference URL format
+        url = f"{self.sr_base}/boxscores/index.cgi?month={date.month}&day={date.day}&year={date.year}"
+
+        try:
+            response = requests.get(url, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            games = []
+
+            # Find all game divs
+            game_divs = soup.find_all('div', class_='game_summary')
+
+            for game_div in game_divs:
+                try:
+                    # Get teams
+                    teams = game_div.find_all('tr')
+                    if len(teams) < 2:
+                        continue
+
+                    away_team_elem = teams[0].find('a')
+                    home_team_elem = teams[1].find('a')
+
+                    if not away_team_elem or not home_team_elem:
+                        continue
+
+                    away_team = away_team_elem.text.strip()
+                    home_team = home_team_elem.text.strip()
+
+                    # Get game time
+                    time_elem = game_div.find('td', class_='right gamelink')
+                    if time_elem:
+                        time_text = time_elem.text.strip()
+                        # Parse time like "7:00 pm" or "12:00 pm"
+                        game_time = self._parse_sportsref_time(date, time_text)
+                    else:
+                        game_time = None
+
+                    if game_time:
+                        games.append({
+                            'date': game_time,
+                            'home_team': home_team,
+                            'away_team': away_team,
+                            'matchup': f"{away_team} @ {home_team}",
+                            'commence_time': game_time.isoformat(),
+                            'status': 'scheduled'
+                        })
+
+                except Exception as e:
+                    print(f"Error parsing Sports-Reference game: {e}")
+                    continue
+
+            return games
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching schedule from Sports-Reference: {e}")
+            return []
+
+    def _parse_sportsref_time(self, date: datetime, time_str: str) -> Optional[datetime]:
+        """Parse Sports-Reference time string to datetime."""
+        try:
+            import pytz
+            from datetime import time as dt_time
+
+            # Remove any extra whitespace
+            time_str = time_str.strip().lower()
+
+            # Parse time like "7:00 pm" or "12:30 pm"
+            if 'pm' in time_str or 'am' in time_str:
+                time_part = time_str.replace('pm', '').replace('am', '').strip()
+                hour, minute = map(int, time_part.split(':'))
+
+                if 'pm' in time_str and hour != 12:
+                    hour += 12
+                elif 'am' in time_str and hour == 12:
+                    hour = 0
+
+                # Combine date with parsed time (assume Eastern Time for Sports-Reference)
+                eastern = pytz.timezone('US/Eastern')
+                game_time = eastern.localize(datetime(date.year, date.month, date.day, hour, minute))
+
+                # Convert to UTC
+                utc_time = game_time.astimezone(pytz.UTC)
+                return utc_time
+
+            return None
+
+        except Exception as e:
+            print(f"Error parsing time '{time_str}': {e}")
+            return None
 
     def fetch_scores_from_espn(self, date: datetime) -> List[Dict]:
         """

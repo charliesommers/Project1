@@ -221,6 +221,35 @@ def get_picks_text():
         for game in games_without_odds[:10]:
             print(f"  - {game['matchup']}")
 
+    # Try to get game times from ESPN for pending games
+    if games_without_odds:
+        print(f"\nFetching game schedule from ESPN for {len(games_without_odds)} pending games...")
+        try:
+            from scores_fetcher import ScoresFetcher
+            espn_fetcher = ScoresFetcher()
+
+            # Get unique dates from pending games
+            pending_dates = set(game['date'].date() for game in games_without_odds)
+
+            # Fetch ESPN schedule for each date
+            espn_schedule = []
+            for game_date in pending_dates:
+                schedule = espn_fetcher.fetch_schedule_from_espn(datetime.combine(game_date, datetime.min.time()))
+                espn_schedule.extend(schedule)
+
+            print(f"✓ Fetched {len(espn_schedule)} games from ESPN schedule")
+
+            # Try to match pending games with ESPN schedule to get game times
+            for game in games_without_odds:
+                espn_game = espn_fetcher.match_game(game, espn_schedule)
+                if espn_game:
+                    game['espn_time'] = espn_game.get('commence_time')
+                    print(f"  ✓ Found time for {game['matchup']}: {espn_game.get('commence_time')}")
+
+        except Exception as e:
+            print(f"Warning: Could not fetch ESPN schedule: {e}")
+            # Continue without ESPN times
+
     # Generate top spread edges for major conferences
     major_conferences = ['ACC', 'Big 12', 'Big Ten', 'SEC', 'Big East']
     spread_picks = generator.generate_spread_picks(games, all_sportsbook_data, major_conferences)
@@ -295,12 +324,27 @@ def get_picks_text():
             'sort_team': pick.get('away_team', '').lower()
         })
 
-    # Add games without odds (pending) - sorted alphabetically at the end
+    # Add games without odds (pending) - sorted by date/time
     for game in games_without_odds:
+        # Try to use ESPN time if available, otherwise use date
+        espn_time = game.get('espn_time')
+        if espn_time:
+            # Use actual game time from ESPN
+            sort_time = espn_time
+        else:
+            # Use date from game to create sort key that puts pending games
+            # after timed games on the same date (using 23:59:59)
+            game_date = game.get('date')
+            if game_date:
+                # Create ISO timestamp for end of day to sort after actual game times
+                sort_time = game_date.strftime('%Y-%m-%dT23:59:59Z')
+            else:
+                sort_time = 'ZZZZ'
+
         all_games_list.append({
             'type': 'pending',
             'data': game,
-            'sort_time': 'ZZZZ',  # Put at the end after all timed games
+            'sort_time': sort_time,
             'sort_team': game['favorite'].lower()  # Sort by favorite team alphabetically
         })
 
@@ -351,7 +395,21 @@ def get_picks_text():
 
         else:  # pending game
             game = item['data']
-            text += f"⏳ PENDING\n"
+
+            # Format game time if available from ESPN
+            game_time_str = ""
+            espn_time = game.get('espn_time')
+            if espn_time:
+                try:
+                    import pytz
+                    game_time_utc = datetime.fromisoformat(espn_time.replace('Z', '+00:00'))
+                    central = pytz.timezone('America/Chicago')
+                    game_time_cst = game_time_utc.astimezone(central)
+                    game_time_str = f" • {game_time_cst.strftime('%I:%M %p')}"
+                except:
+                    pass
+
+            text += f"⏳ PENDING{game_time_str}\n"
             text += f"{game['matchup']}\n"
             text += f"Greg's Total: {game['total']:.1f}\n"
 

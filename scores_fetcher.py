@@ -22,6 +22,43 @@ class ScoresFetcher:
         self.base_url = "https://api.the-odds-api.com/v4"
         self.espn_base = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball"
 
+    def fetch_schedule_from_espn(self, date: datetime) -> List[Dict]:
+        """
+        Fetch game schedule from ESPN API (includes upcoming games with times).
+
+        Args:
+            date: Date to fetch schedule for
+
+        Returns:
+            List of all games (completed and upcoming) with times
+        """
+        date_str = date.strftime('%Y%m%d')
+        endpoint = f"{self.espn_base}/scoreboard"
+
+        params = {
+            'dates': date_str,
+            'limit': 1000
+        }
+
+        try:
+            response = requests.get(endpoint, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            games = []
+            events = data.get('events', [])
+
+            for event in events:
+                game = self._parse_espn_schedule_event(event)
+                if game:
+                    games.append(game)
+
+            return games
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching schedule from ESPN: {e}")
+            return []
+
     def fetch_scores_from_espn(self, date: datetime) -> List[Dict]:
         """
         Fetch scores from ESPN API (free, no key required).
@@ -58,6 +95,56 @@ class ScoresFetcher:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching scores from ESPN: {e}")
             return []
+
+    def _parse_espn_schedule_event(self, event: Dict) -> Optional[Dict]:
+        """Parse ESPN schedule event (upcoming or completed games)."""
+        try:
+            status = event.get('status', {})
+            status_type = status.get('type', {}).get('name', '')
+
+            competitions = event.get('competitions', [])
+            if not competitions:
+                return None
+
+            competition = competitions[0]
+            competitors = competition.get('competitors', [])
+
+            if len(competitors) != 2:
+                return None
+
+            # Get teams
+            home_team = None
+            away_team = None
+
+            for competitor in competitors:
+                team_name = competitor.get('team', {}).get('displayName', '')
+                if competitor.get('homeAway') == 'home':
+                    home_team = team_name
+                else:
+                    away_team = team_name
+
+            if not home_team or not away_team:
+                return None
+
+            # Get game date/time
+            game_date = event.get('date', '')
+            if game_date:
+                game_date = datetime.fromisoformat(game_date.replace('Z', '+00:00'))
+            else:
+                return None
+
+            return {
+                'date': game_date,
+                'home_team': home_team,
+                'away_team': away_team,
+                'matchup': f"{away_team} @ {home_team}",
+                'commence_time': game_date.isoformat(),
+                'status': status_type
+            }
+
+        except Exception as e:
+            print(f"Error parsing ESPN schedule event: {e}")
+            return None
 
     def _parse_espn_game(self, event: Dict) -> Optional[Dict]:
         """Parse ESPN game data."""

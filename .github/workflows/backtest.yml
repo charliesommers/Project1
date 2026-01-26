@@ -1,4 +1,4 @@
-name: CBB Backtest Analysis
+name: Greg's Prediction Accuracy Analysis
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
         default: ''
 
 jobs:
-  backtest:
+  analyze:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +30,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run backtest
+    - name: Run accuracy analysis
       run: |
         if [ -z "${{ github.event.inputs.end_date }}" ]; then
           # No end date specified, use today

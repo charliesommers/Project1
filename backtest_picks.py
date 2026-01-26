@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Backtest Greg Peterson's picks against this season's actual results.
+Analyze Greg Peterson's prediction accuracy against actual game results.
 
-This script analyzes what Greg's record would have been using the flame emoji methodology:
-- UNDER picks when Greg's total is 5+ points below actual (proxy for sportsbook line)
-- OVER picks when Greg's total is 3+ points above actual (proxy for sportsbook line)
+This script analyzes how accurate Greg's totals predictions have been:
+- Mean absolute error (average difference between Greg's total and actual)
+- Distribution of prediction errors
+- How often Greg is significantly different from actual (potential edge indicators)
+- Directional accuracy (does Greg predict higher/lower than actual)
 
-Since we don't have historical sportsbook lines, we use the actual final total as a proxy
-for what the sportsbook line would have been (assuming sportsbooks set lines close to actual results).
-
-All picks assume -110 odds (bet $110 to win $100).
+Note: This is NOT a backtest of betting results since we don't have historical sportsbook lines.
+This simply measures prediction accuracy to understand Greg's handicapping performance.
 """
 
 import os
@@ -55,39 +55,36 @@ def download_gregs_sheet(output_path="data/gregs_lines_backtest.xlsx"):
         return None
 
 
-def calculate_profit_loss(wins: int, losses: int) -> Tuple[float, float]:
+def calculate_accuracy_metrics(matches: List[Dict]) -> Dict:
     """
-    Calculate profit/loss at -110 odds.
+    Calculate prediction accuracy metrics.
 
     Args:
-        wins: Number of winning bets
-        losses: Number of losing bets
+        matches: List of matched games with Greg's totals and actual totals
 
     Returns:
-        (total_profit_loss, roi_percentage)
+        Dictionary with accuracy metrics
     """
-    # At -110 odds: risk $110 to win $100
-    total_risked = (wins + losses) * 110
-    profit_from_wins = wins * 100
-    loss_from_losses = losses * 110
-    total_profit_loss = profit_from_wins - loss_from_losses
+    errors = [m['gregs_total'] - m['actual_total'] for m in matches]
+    abs_errors = [abs(e) for e in errors]
 
-    if total_risked > 0:
-        roi = (total_profit_loss / total_risked) * 100
-    else:
-        roi = 0.0
-
-    return total_profit_loss, roi
+    return {
+        'count': len(matches),
+        'mean_error': sum(errors) / len(errors) if errors else 0,
+        'mean_absolute_error': sum(abs_errors) / len(abs_errors) if abs_errors else 0,
+        'min_error': min(errors) if errors else 0,
+        'max_error': max(errors) if errors else 0,
+        'std_dev': (sum((e - sum(errors)/len(errors))**2 for e in errors) / len(errors))**0.5 if len(errors) > 1 else 0
+    }
 
 
 def backtest_season(start_date: datetime, end_date: datetime):
-    """Backtest Greg's picks for a date range."""
+    """Analyze Greg's prediction accuracy for a date range."""
 
-    print("🏀 CBB PICKS BACKTEST")
+    print("🏀 GREG'S CBB TOTALS ACCURACY ANALYSIS")
     print("=" * 80)
     print(f"Date Range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-    print(f"Methodology: Betting Greg's totals at -110 odds")
-    print(f"Assumption: Sportsbook lines ≈ actual totals (efficient market)")
+    print(f"Analysis: Prediction accuracy vs actual game totals")
     print("=" * 80)
     print()
 
@@ -145,119 +142,96 @@ def backtest_season(start_date: datetime, end_date: datetime):
     print()
 
     if len(matches) == 0:
-        print("❌ No games matched - cannot run backtest")
+        print("❌ No games matched - cannot run analysis")
         return
 
-    # Strategy: Use actual total as proxy for sportsbook line
-    # Apply flame methodology: picks where Greg differs significantly from actual
-    # - UNDER when Greg is 5+ below actual (Greg predicts lower-scoring)
-    # - OVER when Greg is 3+ above actual (Greg predicts higher-scoring)
-    # Then check: if we bet the sportsbook line (≈actual), did the pick win?
-
-    # Since actual ≈ sportsbook, we'll use a small margin (0.5 points)
-    # to simulate sportsbook being slightly off from actual
-
-    print("🔥 FLAME EMOJI PICKS (High Conviction Games)")
+    # Calculate overall accuracy metrics
+    print("📊 OVERALL ACCURACY")
     print("=" * 80)
+
+    metrics = calculate_accuracy_metrics(matches)
+
+    print(f"Total Games Analyzed: {metrics['count']}")
+    print(f"Mean Absolute Error: {metrics['mean_absolute_error']:.2f} points")
+    print(f"Mean Error (Bias): {metrics['mean_error']:+.2f} points")
+    print(f"  → {'Greg predicts HIGHER' if metrics['mean_error'] > 0 else 'Greg predicts LOWER'} on average")
+    print(f"Standard Deviation: {metrics['std_dev']:.2f} points")
+    print(f"Largest Overestimate: {metrics['max_error']:+.2f} points")
+    print(f"Largest Underestimate: {metrics['min_error']:+.2f} points")
     print()
 
-    flame_picks = []
+    # Categorize predictions by accuracy
+    print("📈 PREDICTION DISTRIBUTION")
+    print("=" * 80)
 
-    for match in matches:
-        gregs_total = match['gregs_total']
-        actual_total = match['actual_total']
-        difference = gregs_total - actual_total
+    very_close = [m for m in matches if abs(m['gregs_total'] - m['actual_total']) <= 2]
+    close = [m for m in matches if 2 < abs(m['gregs_total'] - m['actual_total']) <= 5]
+    moderate = [m for m in matches if 5 < abs(m['gregs_total'] - m['actual_total']) <= 10]
+    large = [m for m in matches if abs(m['gregs_total'] - m['actual_total']) > 10]
 
-        # Simulate: sportsbook line was 0.5 below actual (typical juice adjustment)
-        implied_sportsbook_line = actual_total - 0.5
-
-        # UNDER picks: Greg is 5+ below actual (conservative estimate)
-        # Greg thinks it'll be low-scoring, we bet UNDER on sportsbook line
-        if gregs_total <= implied_sportsbook_line - 5.0:
-            # Bet UNDER on sportsbook line
-            # UNDER wins if actual < sportsbook line
-            pick_wins = actual_total < implied_sportsbook_line
-            flame_picks.append({
-                **match,
-                'pick': 'UNDER',
-                'sportsbook_line': implied_sportsbook_line,
-                'edge': gregs_total - implied_sportsbook_line,
-                'wins': pick_wins
-            })
-
-        # OVER picks: Greg is 3+ above actual (aggressive estimate)
-        # Greg thinks it'll be high-scoring, we bet OVER on sportsbook line
-        elif gregs_total >= implied_sportsbook_line + 3.0:
-            # Bet OVER on sportsbook line
-            # OVER wins if actual > sportsbook line
-            pick_wins = actual_total > implied_sportsbook_line
-            flame_picks.append({
-                **match,
-                'pick': 'OVER',
-                'sportsbook_line': implied_sportsbook_line,
-                'edge': gregs_total - implied_sportsbook_line,
-                'wins': pick_wins
-            })
-
-    if len(flame_picks) == 0:
-        print("❌ No games met the flame emoji thresholds")
-        print("   (UNDER: Greg ≥5 below actual, OVER: Greg ≥3 above actual)")
-        return
-
-    # Calculate results
-    total_wins = sum(1 for p in flame_picks if p['wins'])
-    total_losses = len(flame_picks) - total_wins
-    win_pct = (total_wins / len(flame_picks)) * 100
-
-    profit_loss, roi = calculate_profit_loss(total_wins, total_losses)
-
-    # Display overall results
-    print(f"📊 OVERALL RESULTS (Flame Picks Only)")
-    print(f"Total Picks: {len(flame_picks)}")
-    print(f"Record: {total_wins}-{total_losses} ({win_pct:.1f}%)")
-    print(f"Profit/Loss: ${profit_loss:+.2f} (risking $110 per game)")
-    print(f"ROI: {roi:+.2f}%")
-    print(f"Breakeven Win%: 52.4% (needed to profit at -110)")
+    print(f"Very Close (±2 pts):  {len(very_close):4d} ({len(very_close)/len(matches)*100:5.1f}%)")
+    print(f"Close (2-5 pts):      {len(close):4d} ({len(close)/len(matches)*100:5.1f}%)")
+    print(f"Moderate (5-10 pts):  {len(moderate):4d} ({len(moderate)/len(matches)*100:5.1f}%)")
+    print(f"Large (>10 pts):      {len(large):4d} ({len(large)/len(matches)*100:5.1f}%)")
     print()
 
-    # Break down by pick type
-    under_picks = [p for p in flame_picks if p['pick'] == 'UNDER']
-    over_picks = [p for p in flame_picks if p['pick'] == 'OVER']
-
-    if under_picks:
-        under_wins = sum(1 for p in under_picks if p['wins'])
-        under_losses = len(under_picks) - under_wins
-        under_pct = (under_wins / len(under_picks)) * 100
-        under_pl, under_roi = calculate_profit_loss(under_wins, under_losses)
-
-        print(f"🔵 UNDER PICKS (Greg ≥5 below sportsbook)")
-        print(f"Count: {len(under_picks)}")
-        print(f"Record: {under_wins}-{under_losses} ({under_pct:.1f}%)")
-        print(f"Profit/Loss: ${under_pl:+.2f}")
-        print(f"ROI: {under_roi:+.2f}%")
-        print()
-
-    if over_picks:
-        over_wins = sum(1 for p in over_picks if p['wins'])
-        over_losses = len(over_picks) - over_wins
-        over_pct = (over_wins / len(over_picks)) * 100
-        over_pl, over_roi = calculate_profit_loss(over_wins, over_losses)
-
-        print(f"🔴 OVER PICKS (Greg ≥3 above sportsbook)")
-        print(f"Count: {len(over_picks)}")
-        print(f"Record: {over_wins}-{over_losses} ({over_pct:.1f}%)")
-        print(f"Profit/Loss: ${over_pl:+.2f}")
-        print(f"ROI: {over_roi:+.2f}%")
-        print()
-
-    # Show sample picks
-    print("📋 SAMPLE PICKS (first 10)")
+    # Directional analysis
+    print("🎯 DIRECTIONAL ANALYSIS")
     print("=" * 80)
-    for i, pick in enumerate(flame_picks[:10], 1):
-        result = "✓ WIN" if pick['wins'] else "✗ LOSS"
-        print(f"{i}. {pick['matchup']} - {pick['date'].strftime('%m/%d')}")
-        print(f"   Greg: {pick['gregs_total']:.1f} | Sportsbook: {pick['sportsbook_line']:.1f} | Actual: {pick['actual_total']}")
-        print(f"   Pick: {pick['pick']} {pick['sportsbook_line']:.1f} | Edge: {pick['edge']:+.1f} | {result}")
+
+    over_predictions = [m for m in matches if m['gregs_total'] > m['actual_total']]
+    under_predictions = [m for m in matches if m['gregs_total'] < m['actual_total']]
+    exact = [m for m in matches if m['gregs_total'] == m['actual_total']]
+
+    print(f"Greg Higher than Actual: {len(over_predictions):4d} ({len(over_predictions)/len(matches)*100:5.1f}%)")
+    if over_predictions:
+        over_mae = sum(abs(m['gregs_total'] - m['actual_total']) for m in over_predictions) / len(over_predictions)
+        print(f"  → Average overestimate: {over_mae:.2f} points")
+
+    print(f"Greg Lower than Actual:  {len(under_predictions):4d} ({len(under_predictions)/len(matches)*100:5.1f}%)")
+    if under_predictions:
+        under_mae = sum(abs(m['gregs_total'] - m['actual_total']) for m in under_predictions) / len(under_predictions)
+        print(f"  → Average underestimate: {under_mae:.2f} points")
+
+    print(f"Exact Match:             {len(exact):4d} ({len(exact)/len(matches)*100:5.1f}%)")
+    print()
+
+    # Potential edge games (significant differences)
+    print("🔥 POTENTIAL EDGE INDICATORS")
+    print("=" * 80)
+    print("(Games where Greg differed significantly from actual - possible betting opportunities)")
+    print()
+
+    # Significant UNDER indicators (Greg 5+ below actual)
+    under_edges = [m for m in matches if m['gregs_total'] <= m['actual_total'] - 5]
+    print(f"🔵 UNDER Indicators (Greg ≥5 below actual): {len(under_edges)}")
+    if under_edges:
+        under_edge_mae = sum(abs(m['gregs_total'] - m['actual_total']) for m in under_edges) / len(under_edges)
+        print(f"   Average difference: {under_edge_mae:.2f} points")
+
+    # Significant OVER indicators (Greg 3+ above actual)
+    over_edges = [m for m in matches if m['gregs_total'] >= m['actual_total'] + 3]
+    print(f"🔴 OVER Indicators (Greg ≥3 above actual): {len(over_edges)}")
+    if over_edges:
+        over_edge_mae = sum(abs(m['gregs_total'] - m['actual_total']) for m in over_edges) / len(over_edges)
+        print(f"   Average difference: {over_edge_mae:.2f} points")
+
+    print()
+    print(f"Total Edge Indicators: {len(under_edges) + len(over_edges)} games")
+    print(f"  ({(len(under_edges) + len(over_edges))/len(matches)*100:.1f}% of all games)")
+    print()
+
+    # Sample games with largest differences
+    print("📋 LARGEST PREDICTION DIFFERENCES (Top 10)")
+    print("=" * 80)
+
+    sorted_by_diff = sorted(matches, key=lambda m: abs(m['gregs_total'] - m['actual_total']), reverse=True)
+
+    for i, match in enumerate(sorted_by_diff[:10], 1):
+        diff = match['gregs_total'] - match['actual_total']
+        direction = "OVER" if diff > 0 else "UNDER"
+        print(f"{i}. {match['matchup']} - {match['date'].strftime('%m/%d')}")
+        print(f"   Greg: {match['gregs_total']:.1f} | Actual: {match['actual_total']} | Diff: {diff:+.1f} ({direction})")
         print()
 
 

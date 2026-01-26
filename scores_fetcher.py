@@ -86,24 +86,81 @@ class ScoresFetcher:
             soup = BeautifulSoup(response.content, 'html.parser')
             games = []
 
-            # Find all game divs
+            # Find all game divs - Sports-Reference uses div.game_summary for each game
             game_divs = soup.find_all('div', class_='game_summary')
             print(f"    Found {len(game_divs)} game divs on page")
 
             if len(game_divs) == 0:
-                # Try alternative selectors
-                print("    Trying alternative selector: div.teams")
-                game_divs = soup.find_all('div', class_='teams')
-                print(f"    Found {len(game_divs)} with alternative selector")
+                # Try finding the main schedule table instead
+                print("    No game_summary divs found, trying table#games")
+                table = soup.find('table', {'id': 'games'})
+                if table:
+                    rows = table.find_all('tr')[1:]  # Skip header
+                    print(f"    Found {len(rows)} rows in games table")
+
+                    for idx, row in enumerate(rows):
+                        try:
+                            cells = row.find_all(['td', 'th'])
+                            if len(cells) < 3:
+                                continue
+
+                            # Extract visitor and home team (columns vary, look for team links)
+                            visitor_link = None
+                            home_link = None
+                            time_cell = None
+
+                            for cell in cells:
+                                team_link = cell.find('a', href=lambda x: x and '/cbb/schools/' in x)
+                                if team_link:
+                                    if not visitor_link:
+                                        visitor_link = team_link
+                                    else:
+                                        home_link = team_link
+
+                                # Look for time (typically in right-aligned cell)
+                                if 'right' in cell.get('class', []) and ':' in cell.text:
+                                    time_cell = cell
+
+                            if visitor_link and home_link:
+                                away_team = visitor_link.text.strip()
+                                home_team = home_link.text.strip()
+
+                                if time_cell:
+                                    time_text = time_cell.text.strip()
+                                    print(f"    Game {idx}: {away_team} @ {home_team} - Time: {time_text}")
+                                    game_time = self._parse_sportsref_time(date, time_text)
+
+                                    if game_time:
+                                        games.append({
+                                            'date': game_time,
+                                            'home_team': home_team,
+                                            'away_team': away_team,
+                                            'matchup': f"{away_team} @ {home_team}",
+                                            'commence_time': game_time.isoformat(),
+                                            'status': 'scheduled'
+                                        })
+                        except Exception as e:
+                            print(f"    Error parsing table row {idx}: {e}")
+                            continue
+                else:
+                    print("    No games table found either")
+                    return []
 
             for idx, game_div in enumerate(game_divs):
                 try:
-                    # Get teams
-                    teams = game_div.find_all('tr')
+                    # Get the table inside the game_summary div
+                    table = game_div.find('table')
+                    if not table:
+                        print(f"    Game {idx}: No table found in game_summary")
+                        continue
+
+                    # Get team rows (tbody > tr)
+                    teams = table.find_all('tr')
                     if len(teams) < 2:
                         print(f"    Game {idx}: Not enough team rows ({len(teams)})")
                         continue
 
+                    # First row is visitor (away), second is home
                     away_team_elem = teams[0].find('a')
                     home_team_elem = teams[1].find('a')
 
@@ -114,32 +171,34 @@ class ScoresFetcher:
                     away_team = away_team_elem.text.strip()
                     home_team = home_team_elem.text.strip()
 
-                    # Get game time
-                    time_elem = game_div.find('td', class_='right gamelink')
+                    # Get game time - look in the table for the time cell
+                    time_elem = game_div.find('td', class_='right')
                     if not time_elem:
-                        # Try alternative selector
-                        time_elem = game_div.find('td', class_='gamelink')
+                        # Try looking for any td with time-like text (contains ':')
+                        for td in game_div.find_all('td'):
+                            if ':' in td.text and ('am' in td.text.lower() or 'pm' in td.text.lower()):
+                                time_elem = td
+                                break
 
                     if time_elem:
                         time_text = time_elem.text.strip()
                         print(f"    Game {idx}: {away_team} @ {home_team} - Time: {time_text}")
                         # Parse time like "7:00 pm" or "12:00 pm"
                         game_time = self._parse_sportsref_time(date, time_text)
+
+                        if game_time:
+                            games.append({
+                                'date': game_time,
+                                'home_team': home_team,
+                                'away_team': away_team,
+                                'matchup': f"{away_team} @ {home_team}",
+                                'commence_time': game_time.isoformat(),
+                                'status': 'scheduled'
+                            })
+                        else:
+                            print(f"    Game {idx}: Could not parse time: {time_text}")
                     else:
                         print(f"    Game {idx}: {away_team} @ {home_team} - No time element found")
-                        game_time = None
-
-                    if game_time:
-                        games.append({
-                            'date': game_time,
-                            'home_team': home_team,
-                            'away_team': away_team,
-                            'matchup': f"{away_team} @ {home_team}",
-                            'commence_time': game_time.isoformat(),
-                            'status': 'scheduled'
-                        })
-                    else:
-                        print(f"    Game {idx}: Skipping - no valid time")
 
                 except Exception as e:
                     print(f"    Error parsing Sports-Reference game {idx}: {e}")

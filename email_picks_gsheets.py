@@ -396,6 +396,26 @@ def get_picks_text():
         else:  # pending game
             game = item['data']
 
+            # Determine away/home from Greg's data
+            # In Greg's format: home_team field tells us which team is home
+            # If no home_team (neutral court), use favorite vs underdog
+            home_team_name = game.get('home_team')
+            favorite = game['favorite']
+            underdog = game['underdog']
+
+            if home_team_name:
+                # Determine which is away based on who is home
+                if home_team_name.lower() == underdog.lower():
+                    away = clean_team_name(favorite)
+                    home = clean_team_name(underdog)
+                else:
+                    away = clean_team_name(underdog)
+                    home = clean_team_name(favorite)
+            else:
+                # Neutral court - show as favorite @ underdog
+                away = clean_team_name(favorite)
+                home = clean_team_name(underdog)
+
             # Format game time if available from ESPN
             game_time_str = ""
             espn_time = game.get('espn_time')
@@ -405,12 +425,16 @@ def get_picks_text():
                     game_time_utc = datetime.fromisoformat(espn_time.replace('Z', '+00:00'))
                     central = pytz.timezone('America/Chicago')
                     game_time_cst = game_time_utc.astimezone(central)
-                    game_time_str = f" • {game_time_cst.strftime('%I:%M %p')}"
+                    game_time_str = game_time_cst.strftime('%I:%M %p')
                 except:
-                    pass
+                    game_time_str = "TBD"
+            else:
+                game_time_str = "TBD"
 
-            text += f"⏳ PENDING{game_time_str}\n"
-            text += f"{game['matchup']}\n"
+            matchup_display = f"{away} @ {home}"
+
+            text += f"⏳ PENDING\n"
+            text += f"{matchup_display} • {game_time_str}\n"
             text += f"Greg's Total: {game['total']:.1f}\n"
 
         if i < len(all_games_list):

@@ -33,6 +33,75 @@ class DailyPicksGenerator:
         self.under_threshold = under_threshold
         self.over_threshold = over_threshold
 
+    def generate_spread_picks(
+        self,
+        gregs_games: List[Dict],
+        sportsbook_data: List[Dict],
+        conferences: List[str] = None
+    ) -> List[Dict]:
+        """
+        Generate spread picks for specific conferences.
+
+        Args:
+            gregs_games: List of games from Greg's parser
+            sportsbook_data: List of games with sportsbook odds
+            conferences: List of conferences to filter (e.g., ['ACC', 'SEC', 'Big Ten'])
+
+        Returns:
+            List of spread picks with edges
+        """
+        spread_picks = []
+
+        for gregs_game in gregs_games:
+            # Find matching sportsbook game
+            sportsbook_game = self._match_game(gregs_game, sportsbook_data)
+
+            if not sportsbook_game:
+                continue
+
+            # Get spreads
+            gregs_spread = gregs_game.get('spread')
+            sportsbook_spread = sportsbook_game.get('spread')
+
+            if gregs_spread is None or sportsbook_spread is None:
+                continue
+
+            # Calculate edge (difference in spreads)
+            edge = abs(gregs_spread - sportsbook_spread)
+
+            # Get conference
+            conference = get_conference(gregs_game['favorite'])
+            if conference == 'Other':
+                conference = get_conference(gregs_game['underdog'])
+
+            # Filter by conference if specified
+            if conferences and conference not in conferences:
+                continue
+
+            # Get away/home teams
+            away_team = sportsbook_game.get('away_team', '')
+            home_team = sportsbook_game.get('home_team', '')
+
+            spread_picks.append({
+                'date': gregs_game['date'],
+                'matchup': gregs_game['matchup'],
+                'favorite': gregs_game['favorite'],
+                'underdog': gregs_game['underdog'],
+                'gregs_spread': gregs_spread,
+                'sportsbook_spread': sportsbook_spread,
+                'edge': edge,
+                'conference': conference,
+                'game_time': sportsbook_game.get('commence_time', ''),
+                'bookmaker': sportsbook_game.get('source_bookmaker', ''),
+                'away_team': away_team,
+                'home_team': home_team
+            })
+
+        # Sort by edge (biggest edges first)
+        spread_picks.sort(key=lambda x: x['edge'], reverse=True)
+
+        return spread_picks
+
     def generate_picks(
         self,
         gregs_games: List[Dict],

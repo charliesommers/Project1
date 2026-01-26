@@ -57,36 +57,42 @@ def clean_team_name(team_name: str) -> str:
     mascots = [
         'blue devils', 'crimson tide', 'fighting irish', 'golden eagles', 'golden gophers',
         'nittany lions', 'ragin cajuns', 'red flash', 'red raiders', 'red storm',
-        'river hawks', 'sun devils', 'tar heels',
+        'river hawks', 'sun devils', 'tar heels', 'green wave',
         # Single-word mascots
         'aggies', 'aztecs', 'badgers', 'bears', 'bearcats', 'beavers', 'bengals',
         'bobcats', 'broncos', 'bruins', 'buccaneers', 'buckeyes', 'buffalo',
         'bulldogs', 'cardinals', 'chanticleers', 'cougars', 'cowboys', 'crusaders',
-        'cyclones', 'demons', 'ducks', 'eagles', 'falcons', 'gators', 'grizzlies',
+        'cyclones', 'demons', 'deacons', 'ducks', 'eagles', 'falcons', 'gators', 'grizzlies',
         'hawkeyes', 'hilltoppers', 'hokies', 'hornets', 'huskies', 'hurricanes',
-        'jayhawks', 'knights', 'lancers', 'lions', 'lobos', 'miners', 'mountaineers',
-        'musketeers', 'orangemen', 'owls', 'panthers', 'pirates', 'ramblers', 'rams',
+        'jayhawks', 'jaguars', 'knights', 'lancers', 'lions', 'lobos', 'miners', 'mountaineers',
+        'musketeers', 'orangemen', 'orange', 'owls', 'panthers', 'pirates', 'ramblers', 'rams',
         'razorbacks', 'rebels', 'salukis', 'seminoles', 'sharks', 'skyhawks',
-        'sooners', 'spartans', 'terrapins', 'tigers', 'titans', 'trojans', 'utes',
-        'volunteers', 'wildcats', 'wolverines', 'wolfpack'
+        'sooners', 'spartans', 'terrapins', 'terriers', 'tigers', 'titans', 'trojans', 'utes',
+        'volunteers', 'wildcats', 'wolverines', 'wolfpack', 'wave'
     ]
 
     name = team_name.strip()
     name_lower = name.lower()
 
-    # Try to remove mascots (check both at end and in middle)
+    # First pass: Remove mascots at the end
     for mascot in mascots:
         # Pattern: "Team Mascot" -> "Team"
         if name_lower.endswith(' ' + mascot):
             name = name[:-(len(mascot) + 1)].strip()
+            name_lower = name.lower()
             break
-        # Pattern: "Mascot of Team" or standalone mascot
-        elif name_lower == mascot:
-            # Keep as is if it's ONLY the mascot (no team name)
-            break
+
+    # Second pass: Remove mascots in parentheses or after "the"
+    for mascot in mascots:
         # Pattern: "Team (Mascot)"
-        elif f' ({mascot})' in name_lower:
-            name = name.replace(f' ({mascot})', '').replace(f' ({mascot.title()})', '').strip()
+        if f' ({mascot})' in name_lower:
+            idx = name_lower.find(f' ({mascot})')
+            name = name[:idx].strip()
+            name_lower = name.lower()
+            break
+        # Pattern: "The Mascot"
+        if name_lower.startswith('the ' + mascot):
+            # This is just a mascot with no team name, keep original
             break
 
     return name
@@ -215,11 +221,52 @@ def get_picks_text():
         for game in games_without_odds[:10]:
             print(f"  - {game['matchup']}")
 
+    # Generate top spread edges for major conferences
+    major_conferences = ['ACC', 'Big 12', 'Big Ten', 'SEC', 'Big East']
+    spread_picks = generator.generate_spread_picks(games, all_sportsbook_data, major_conferences)
+    top_spread_picks = spread_picks[:5]  # Top 5 biggest edges
+
     # Format as text
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')}\n"
     text += f"CBB TOTALS PICKS\n\n"
     text += f"{len(picks_with_odds)} games with odds\n"
     text += f"{len(games_without_odds)} pending\n"
+
+    # Display TOP SPREAD EDGES (major conferences only)
+    if top_spread_picks:
+        text += "\n" + "="*50 + "\n"
+        text += "🏀 TOP SPREAD EDGES (Major Conferences)\n"
+        text += "="*50 + "\n\n"
+
+        for i, pick in enumerate(top_spread_picks, 1):
+            # Format game time
+            game_time_str = ""
+            if pick.get('game_time'):
+                try:
+                    import pytz
+                    game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
+                    central = pytz.timezone('America/Chicago')
+                    game_time_cst = game_time_utc.astimezone(central)
+                    game_time_str = game_time_cst.strftime('%I:%M %p')
+                except:
+                    game_time_str = "TBD"
+            else:
+                game_time_str = "TBD"
+
+            # Format as "Away @ Home" with clean names
+            away = clean_team_name(pick.get('away_team', ''))
+            home = clean_team_name(pick.get('home_team', ''))
+            if away and home:
+                matchup_display = f"{away} @ {home}"
+            else:
+                matchup_display = pick['matchup']
+
+            text += f"{i}. {matchup_display} ({pick['conference']})\n"
+            text += f"{game_time_str} CST\n"
+            text += f"Edge: {pick['edge']:.1f} pts\n"
+            text += f"Greg: {pick['gregs_spread']:+.1f} | Book: {pick['sportsbook_spread']:+.1f}\n\n"
+
+        text += "="*50 + "\n\n"
 
     # Display TOP PICKS section (flame-worthy bets in chronological order)
     if top_picks:

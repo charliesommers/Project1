@@ -86,21 +86,30 @@ class OddsFetcher:
                     bookmaker_name = bookmaker_info.get('key', '')
                     markets = bookmaker_info.get('markets', [])
 
-                    # Extract totals
+                    # Extract totals and spreads
                     total = None
+                    spread = None
+
                     for market in markets:
                         if market.get('key') == 'totals':
                             outcomes = market.get('outcomes', [])
                             if outcomes:
                                 total = outcomes[0].get('point')  # Over/Under line
-                                break
+                        elif market.get('key') == 'spreads':
+                            outcomes = market.get('outcomes', [])
+                            # Find home team spread
+                            for outcome in outcomes:
+                                if outcome.get('name') == home_team:
+                                    spread = outcome.get('point')
+                                    break
 
-                    if total:
+                    if total or spread:
                         structured_games.append({
                             'home_team': home_team,
                             'away_team': away_team,
                             'commence_time': commence_time,
                             'total': total,
+                            'spread': spread,
                             'source_bookmaker': bookmaker_name
                         })
 

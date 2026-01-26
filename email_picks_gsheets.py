@@ -295,13 +295,13 @@ def get_picks_text():
             'sort_team': pick.get('away_team', '').lower()
         })
 
-    # Add games without odds (pending)
+    # Add games without odds (pending) - sorted alphabetically at the end
     for game in games_without_odds:
         all_games_list.append({
             'type': 'pending',
             'data': game,
-            'sort_time': 'ZZZ',  # Put pending at the end
-            'sort_team': game['underdog'].lower()  # Sort by underdog
+            'sort_time': 'ZZZZ',  # Put at the end after all timed games
+            'sort_team': game['favorite'].lower()  # Sort by favorite team alphabetically
         })
 
     # Sort combined list by time, then away team

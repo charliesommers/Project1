@@ -75,27 +75,40 @@ class ScoresFetcher:
         # Sports-Reference URL format
         url = f"{self.sr_base}/boxscores/index.cgi?month={date.month}&day={date.day}&year={date.year}"
 
+        print(f"    Fetching from URL: {url}")
+
         try:
             response = requests.get(url, timeout=15)
             response.raise_for_status()
+
+            print(f"    Response status: {response.status_code}")
 
             soup = BeautifulSoup(response.content, 'html.parser')
             games = []
 
             # Find all game divs
             game_divs = soup.find_all('div', class_='game_summary')
+            print(f"    Found {len(game_divs)} game divs on page")
 
-            for game_div in game_divs:
+            if len(game_divs) == 0:
+                # Try alternative selectors
+                print("    Trying alternative selector: div.teams")
+                game_divs = soup.find_all('div', class_='teams')
+                print(f"    Found {len(game_divs)} with alternative selector")
+
+            for idx, game_div in enumerate(game_divs):
                 try:
                     # Get teams
                     teams = game_div.find_all('tr')
                     if len(teams) < 2:
+                        print(f"    Game {idx}: Not enough team rows ({len(teams)})")
                         continue
 
                     away_team_elem = teams[0].find('a')
                     home_team_elem = teams[1].find('a')
 
                     if not away_team_elem or not home_team_elem:
+                        print(f"    Game {idx}: Missing team links")
                         continue
 
                     away_team = away_team_elem.text.strip()
@@ -103,11 +116,17 @@ class ScoresFetcher:
 
                     # Get game time
                     time_elem = game_div.find('td', class_='right gamelink')
+                    if not time_elem:
+                        # Try alternative selector
+                        time_elem = game_div.find('td', class_='gamelink')
+
                     if time_elem:
                         time_text = time_elem.text.strip()
+                        print(f"    Game {idx}: {away_team} @ {home_team} - Time: {time_text}")
                         # Parse time like "7:00 pm" or "12:00 pm"
                         game_time = self._parse_sportsref_time(date, time_text)
                     else:
+                        print(f"    Game {idx}: {away_team} @ {home_team} - No time element found")
                         game_time = None
 
                     if game_time:
@@ -119,15 +138,18 @@ class ScoresFetcher:
                             'commence_time': game_time.isoformat(),
                             'status': 'scheduled'
                         })
+                    else:
+                        print(f"    Game {idx}: Skipping - no valid time")
 
                 except Exception as e:
-                    print(f"Error parsing Sports-Reference game: {e}")
+                    print(f"    Error parsing Sports-Reference game {idx}: {e}")
                     continue
 
+            print(f"    Successfully parsed {len(games)} games with valid times")
             return games
 
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching schedule from Sports-Reference: {e}")
+            print(f"    Error fetching schedule from Sports-Reference: {e}")
             return []
 
     def _parse_sportsref_time(self, date: datetime, time_str: str) -> Optional[datetime]:

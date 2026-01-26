@@ -14,10 +14,45 @@ All picks assume -110 odds (bet $110 to win $100).
 
 import os
 import sys
+import requests
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple
-from gregs_parser import parse_gregs_excel_from_url
+from gregs_cbb_parser import GregsCBBParser
 from scores_fetcher import ScoresFetcher
+
+
+# Greg's Google Sheets ID (from VSIN website)
+GOOGLE_SHEETS_ID = "1RoqluBp1zE5HduO-QNb5pKIQen98pnIEUZz7CERsPgU"
+GOOGLE_SHEETS_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=xlsx"
+
+
+def download_gregs_sheet(output_path="data/gregs_lines_backtest.xlsx"):
+    """
+    Download Greg's Google Sheet directly.
+
+    Args:
+        output_path: Where to save the downloaded file
+
+    Returns:
+        Path to downloaded file or None if failed
+    """
+    try:
+        # Create data directory if needed
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Download the file
+        response = requests.get(GOOGLE_SHEETS_URL, timeout=30)
+        response.raise_for_status()
+
+        # Save to file
+        with open(output_path, 'wb') as f:
+            f.write(response.content)
+
+        return output_path
+
+    except Exception as e:
+        print(f"Error downloading Google Sheet: {e}")
+        return None
 
 
 def calculate_profit_loss(wins: int, losses: int) -> Tuple[float, float]:
@@ -58,12 +93,21 @@ def backtest_season(start_date: datetime, end_date: datetime):
 
     # Download Greg's current sheet (has historical data)
     print("📊 Downloading Greg's totals from Google Sheets...")
-    games = parse_gregs_excel_from_url()
-    if not games:
+    file_path = download_gregs_sheet()
+    if not file_path:
         print("❌ Could not download Greg's data")
         return
 
-    print(f"✓ Found {len(games)} games in Greg's sheet")
+    # Parse Greg's sheet
+    parser = GregsCBBParser(file_path)
+    parser.load_file()
+    games = parser.parse_all_sheets()
+
+    if not games:
+        print("❌ No games found in Greg's sheet")
+        return
+
+    print(f"✓ Found {len(games)} total games in Greg's sheet")
 
     # Filter games to date range
     games_in_range = [

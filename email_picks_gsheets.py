@@ -234,19 +234,30 @@ def get_picks_text():
             # Fetch ESPN schedule for each date
             espn_schedule = []
             for game_date in pending_dates:
+                print(f"  Fetching ESPN schedule for {game_date.strftime('%Y-%m-%d')}...")
                 schedule = espn_fetcher.fetch_schedule_from_espn(datetime.combine(game_date, datetime.min.time()))
                 espn_schedule.extend(schedule)
+                print(f"    Found {len(schedule)} games on ESPN for this date")
 
-            print(f"✓ Fetched {len(espn_schedule)} games from ESPN schedule")
+            print(f"✓ Total ESPN games fetched: {len(espn_schedule)}")
+
+            if len(espn_schedule) == 0:
+                print("  ⚠️  ESPN returned no games - times will show as TBD")
 
             # Try to match pending games with ESPN schedule to get game times and home/away teams
+            matched_count = 0
             for game in games_without_odds:
                 espn_game = espn_fetcher.match_game(game, espn_schedule)
                 if espn_game:
                     game['espn_time'] = espn_game.get('commence_time')
                     game['espn_home'] = espn_game.get('home_team')
                     game['espn_away'] = espn_game.get('away_team')
+                    matched_count += 1
                     print(f"  ✓ Found time for {game['matchup']}: {espn_game.get('commence_time')}")
+                else:
+                    print(f"  ✗ No ESPN match for {game['matchup']}")
+
+            print(f"\nESPN matching summary: {matched_count}/{len(games_without_odds)} pending games matched")
 
         except Exception as e:
             print(f"Warning: Could not fetch ESPN schedule: {e}")
@@ -428,19 +439,23 @@ def get_picks_text():
                     home = clean_team_name(underdog)
 
             # Format game time if available from ESPN
-            game_time_str = ""
+            game_time_str = "TBD"
             espn_time = game.get('espn_time')
             if espn_time:
                 try:
                     import pytz
-                    game_time_utc = datetime.fromisoformat(espn_time.replace('Z', '+00:00'))
+                    # Handle both string and datetime objects
+                    if isinstance(espn_time, str):
+                        game_time_utc = datetime.fromisoformat(espn_time.replace('Z', '+00:00'))
+                    else:
+                        game_time_utc = espn_time
+
                     central = pytz.timezone('America/Chicago')
                     game_time_cst = game_time_utc.astimezone(central)
                     game_time_str = game_time_cst.strftime('%I:%M %p')
-                except:
+                except Exception as e:
+                    print(f"Warning: Failed to parse ESPN time for {game.get('matchup')}: {e}")
                     game_time_str = "TBD"
-            else:
-                game_time_str = "TBD"
 
             matchup_display = f"{away} @ {home}"
 

@@ -261,49 +261,24 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            text += f"{i}. {matchup_display} ({pick['conference']})\n"
+            # Determine which team Greg is betting on
+            # If Greg's spread is MORE negative, he favors the FAVORITE more
+            # If Greg's spread is LESS negative, he favors the UNDERDOG
+            favorite = clean_team_name(pick['favorite'])
+            underdog = clean_team_name(pick['underdog'])
+
+            if pick['gregs_spread'] < pick['sportsbook_spread']:
+                # Greg's line is more negative = bet FAVORITE
+                greg_pick = f"BET {favorite}"
+            else:
+                # Greg's line is less negative = bet UNDERDOG
+                greg_pick = f"BET {underdog}"
+
+            text += f"{i}. {greg_pick}\n"
+            text += f"{matchup_display} ({pick['conference']})\n"
             text += f"{game_time_str} CST\n"
             text += f"Edge: {pick['edge']:.1f} pts\n"
             text += f"Greg: {pick['gregs_spread']:+.1f} | Book: {pick['sportsbook_spread']:+.1f}\n\n"
-
-        text += "="*50 + "\n\n"
-
-    # Display TOP PICKS section (flame-worthy bets in chronological order)
-    if top_picks:
-        text += "\n" + "="*50 + "\n"
-        text += "🔥 TOP PICKS\n"
-        text += "="*50 + "\n\n"
-
-        for pick in top_picks:
-            edge = abs(pick['edge'])
-
-            # Format game time
-            game_time_str = ""
-            if pick.get('game_time'):
-                try:
-                    import pytz
-                    game_time_utc = datetime.fromisoformat(pick['game_time'].replace('Z', '+00:00'))
-                    central = pytz.timezone('America/Chicago')
-                    game_time_cst = game_time_utc.astimezone(central)
-                    game_time_str = game_time_cst.strftime('%I:%M %p')
-                except:
-                    game_time_str = "TBD"
-            else:
-                game_time_str = "TBD"
-
-            # Format as "Away @ Home" with clean names
-            away = clean_team_name(pick.get('away_team', ''))
-            home = clean_team_name(pick.get('home_team', ''))
-            if away and home:
-                matchup_display = f"{away} @ {home}"
-            else:
-                matchup_display = pick['matchup']
-
-            text += f"🔥 {pick['pick']} {pick['sportsbook_total']:.1f}\n"
-            text += f"{matchup_display}\n"
-            text += f"{game_time_str} CST\n"
-            text += f"Edge: {edge:.1f} pts\n"
-            text += f"Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n\n"
 
         text += "="*50 + "\n\n"
 

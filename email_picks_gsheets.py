@@ -221,58 +221,10 @@ def get_picks_text():
         for game in games_without_odds[:10]:
             print(f"  - {game['matchup']}")
 
-    # Try to get game times from ESPN for pending games
+    # Note: Pending games will show with TBD for game times
+    # Team name matching between sources is too unreliable for consistent results
     if games_without_odds:
-        print(f"\nFetching game schedule from ESPN for {len(games_without_odds)} pending games...")
-        try:
-            from scores_fetcher import ScoresFetcher
-            espn_fetcher = ScoresFetcher()
-
-            # Get unique dates from pending games
-            pending_dates = set(game['date'].date() for game in games_without_odds)
-
-            # Fetch ESPN schedule for each date
-            espn_schedule = []
-            for game_date in pending_dates:
-                print(f"  Fetching ESPN schedule for {game_date.strftime('%Y-%m-%d')}...")
-                schedule = espn_fetcher.fetch_schedule_from_espn(datetime.combine(game_date, datetime.min.time()))
-                espn_schedule.extend(schedule)
-                print(f"    Found {len(schedule)} games on ESPN for this date")
-
-            print(f"✓ Total ESPN games fetched: {len(espn_schedule)}")
-
-            # If ESPN didn't get many games, try Sports-Reference (comprehensive D1 coverage)
-            if len(espn_schedule) < 10:
-                print(f"\n  ESPN coverage limited - fetching from Sports-Reference for complete schedule...")
-                for game_date in pending_dates:
-                    print(f"  Fetching Sports-Reference schedule for {game_date.strftime('%Y-%m-%d')}...")
-                    sr_schedule = espn_fetcher.fetch_schedule_from_sportsref(datetime.combine(game_date, datetime.min.time()))
-                    espn_schedule.extend(sr_schedule)
-                    print(f"    Found {len(sr_schedule)} games on Sports-Reference for this date")
-
-                print(f"✓ Total games from all sources: {len(espn_schedule)}")
-
-            if len(espn_schedule) == 0:
-                print("  ⚠️  No games found from any source - times will show as TBD")
-
-            # Try to match pending games with ESPN schedule to get game times and home/away teams
-            matched_count = 0
-            for game in games_without_odds:
-                espn_game = espn_fetcher.match_game(game, espn_schedule)
-                if espn_game:
-                    game['espn_time'] = espn_game.get('commence_time')
-                    game['espn_home'] = espn_game.get('home_team')
-                    game['espn_away'] = espn_game.get('away_team')
-                    matched_count += 1
-                    print(f"  ✓ Found time for {game['matchup']}: {espn_game.get('commence_time')}")
-                else:
-                    print(f"  ✗ No ESPN match for {game['matchup']}")
-
-            print(f"\nESPN matching summary: {matched_count}/{len(games_without_odds)} pending games matched")
-
-        except Exception as e:
-            print(f"Warning: Could not fetch ESPN schedule: {e}")
-            # Continue without ESPN times
+        print(f"\n{len(games_without_odds)} pending games (no odds yet) - times will show as TBD")
 
     # Generate top spread edges for major conferences
     major_conferences = ['ACC', 'Big 12', 'Big Ten', 'SEC', 'Big East']
@@ -348,28 +300,17 @@ def get_picks_text():
             'sort_team': pick.get('away_team', '').lower()
         })
 
-    # Add games without odds (pending) - sorted by date/time
-    for game in games_without_odds:
-        # Try to use ESPN time if available, otherwise use date
-        espn_time = game.get('espn_time')
-        if espn_time:
-            # Use actual game time from ESPN
-            sort_time = espn_time
-        else:
-            # Use date from game to create sort key that puts pending games
-            # after timed games on the same date (using 23:59:59)
-            game_date = game.get('date')
-            if game_date:
-                # Create ISO timestamp for end of day to sort after actual game times
-                sort_time = game_date.strftime('%Y-%m-%dT23:59:59Z')
-            else:
-                sort_time = 'ZZZZ'
+    # Add games without odds (pending) - keep in Greg's original order
+    for idx, game in enumerate(games_without_odds):
+        # Sort pending games after timed games, but preserve Greg's order
+        # Use ZZZZ prefix + index to maintain original order
+        sort_time = f'ZZZZ{idx:04d}'
 
         all_games_list.append({
             'type': 'pending',
             'data': game,
             'sort_time': sort_time,
-            'sort_team': game['favorite'].lower()  # Sort by favorite team alphabetically
+            'sort_team': ''  # Empty string since we're using index for order
         })
 
     # Sort combined list by time, then away team
@@ -420,58 +361,29 @@ def get_picks_text():
         else:  # pending game
             game = item['data']
 
-            # Determine away/home teams
-            # Priority: 1) ESPN data (most accurate), 2) Greg's home_team field
-            espn_away = game.get('espn_away')
-            espn_home = game.get('espn_home')
+            # Use Greg's data for pending games
+            # In Greg's format: home_team field tells us which team is home
+            home_team_name = game.get('home_team')
+            favorite = game['favorite']
+            underdog = game['underdog']
 
-            if espn_away and espn_home:
-                # Use ESPN's home/away determination (most reliable)
-                away = clean_team_name(espn_away)
-                home = clean_team_name(espn_home)
-            else:
-                # Fall back to Greg's data
-                # In Greg's format: home_team field tells us which team is home
-                home_team_name = game.get('home_team')
-                favorite = game['favorite']
-                underdog = game['underdog']
-
-                if home_team_name:
-                    # Determine which is away based on who is home
-                    if home_team_name.lower() == underdog.lower():
-                        away = clean_team_name(favorite)
-                        home = clean_team_name(underdog)
-                    else:
-                        away = clean_team_name(underdog)
-                        home = clean_team_name(favorite)
-                else:
-                    # Neutral court - show as favorite @ underdog
+            if home_team_name:
+                # Determine which is away based on who is home
+                if home_team_name.lower() == underdog.lower():
                     away = clean_team_name(favorite)
                     home = clean_team_name(underdog)
-
-            # Format game time if available from ESPN
-            game_time_str = "TBD"
-            espn_time = game.get('espn_time')
-            if espn_time:
-                try:
-                    import pytz
-                    # Handle both string and datetime objects
-                    if isinstance(espn_time, str):
-                        game_time_utc = datetime.fromisoformat(espn_time.replace('Z', '+00:00'))
-                    else:
-                        game_time_utc = espn_time
-
-                    central = pytz.timezone('America/Chicago')
-                    game_time_cst = game_time_utc.astimezone(central)
-                    game_time_str = game_time_cst.strftime('%I:%M %p')
-                except Exception as e:
-                    print(f"Warning: Failed to parse ESPN time for {game.get('matchup')}: {e}")
-                    game_time_str = "TBD"
+                else:
+                    away = clean_team_name(underdog)
+                    home = clean_team_name(favorite)
+            else:
+                # Neutral court - show as favorite vs underdog
+                away = clean_team_name(favorite)
+                home = clean_team_name(underdog)
 
             matchup_display = f"{away} @ {home}"
 
             text += f"⏳ PENDING\n"
-            text += f"{matchup_display} • {game_time_str}\n"
+            text += f"{matchup_display} • TBD\n"
             text += f"Greg's Total: {game['total']:.1f}\n"
 
         if i < len(all_games_list):

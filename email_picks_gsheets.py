@@ -239,11 +239,13 @@ def get_picks_text():
 
             print(f"✓ Fetched {len(espn_schedule)} games from ESPN schedule")
 
-            # Try to match pending games with ESPN schedule to get game times
+            # Try to match pending games with ESPN schedule to get game times and home/away teams
             for game in games_without_odds:
                 espn_game = espn_fetcher.match_game(game, espn_schedule)
                 if espn_game:
                     game['espn_time'] = espn_game.get('commence_time')
+                    game['espn_home'] = espn_game.get('home_team')
+                    game['espn_away'] = espn_game.get('away_team')
                     print(f"  ✓ Found time for {game['matchup']}: {espn_game.get('commence_time')}")
 
         except Exception as e:
@@ -396,25 +398,34 @@ def get_picks_text():
         else:  # pending game
             game = item['data']
 
-            # Determine away/home from Greg's data
-            # In Greg's format: home_team field tells us which team is home
-            # If no home_team (neutral court), use favorite vs underdog
-            home_team_name = game.get('home_team')
-            favorite = game['favorite']
-            underdog = game['underdog']
+            # Determine away/home teams
+            # Priority: 1) ESPN data (most accurate), 2) Greg's home_team field
+            espn_away = game.get('espn_away')
+            espn_home = game.get('espn_home')
 
-            if home_team_name:
-                # Determine which is away based on who is home
-                if home_team_name.lower() == underdog.lower():
+            if espn_away and espn_home:
+                # Use ESPN's home/away determination (most reliable)
+                away = clean_team_name(espn_away)
+                home = clean_team_name(espn_home)
+            else:
+                # Fall back to Greg's data
+                # In Greg's format: home_team field tells us which team is home
+                home_team_name = game.get('home_team')
+                favorite = game['favorite']
+                underdog = game['underdog']
+
+                if home_team_name:
+                    # Determine which is away based on who is home
+                    if home_team_name.lower() == underdog.lower():
+                        away = clean_team_name(favorite)
+                        home = clean_team_name(underdog)
+                    else:
+                        away = clean_team_name(underdog)
+                        home = clean_team_name(favorite)
+                else:
+                    # Neutral court - show as favorite @ underdog
                     away = clean_team_name(favorite)
                     home = clean_team_name(underdog)
-                else:
-                    away = clean_team_name(underdog)
-                    home = clean_team_name(favorite)
-            else:
-                # Neutral court - show as favorite @ underdog
-                away = clean_team_name(favorite)
-                home = clean_team_name(underdog)
 
             # Format game time if available from ESPN
             game_time_str = ""

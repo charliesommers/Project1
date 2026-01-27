@@ -154,18 +154,30 @@ def backtest_season(start_date: datetime, end_date: datetime, try_historical_odd
 
     # Match Greg's games to completed games
     print("🔗 Matching games...")
+    print(f"  Processing {len(games_in_range)} games from Greg's sheet...")
     matches = []
-    for gregs_game in games_in_range:
-        completed_game = fetcher.match_game(gregs_game, all_completed_games)
-        if completed_game:
-            matches.append({
-                'gregs_game': gregs_game,
-                'completed_game': completed_game,
-                'gregs_total': gregs_game['total'],
-                'actual_total': completed_game['total'],
-                'matchup': gregs_game['matchup'],
-                'date': gregs_game['date']
-            })
+
+    for i, gregs_game in enumerate(games_in_range):
+        if (i + 1) % 100 == 0:
+            print(f"  Progress: {i+1}/{len(games_in_range)} games processed...")
+
+        try:
+            completed_game = fetcher.match_game(gregs_game, all_completed_games)
+            if completed_game:
+                matches.append({
+                    'gregs_game': gregs_game,
+                    'completed_game': completed_game,
+                    'gregs_total': gregs_game['total'],
+                    'actual_total': completed_game['total'],
+                    'matchup': gregs_game['matchup'],
+                    'date': gregs_game['date']
+                })
+        except Exception as e:
+            print(f"  ⚠️  Error matching game {i+1}: {gregs_game.get('matchup', 'unknown')}")
+            print(f"     Error: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
 
     print(f"✓ Matched {len(matches)}/{len(games_in_range)} games")
     print()

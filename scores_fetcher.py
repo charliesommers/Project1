@@ -412,12 +412,28 @@ class ScoresFetcher:
         Returns:
             Matched game with scores or None
         """
-        gregs_fav = gregs_game['favorite'].lower().strip()
-        gregs_dog = gregs_game['underdog'].lower().strip()
+        # Validate inputs
+        if not gregs_game or not scored_games:
+            return None
+
+        if 'favorite' not in gregs_game or 'underdog' not in gregs_game:
+            return None
+
+        if not gregs_game['favorite'] or not gregs_game['underdog']:
+            return None
+
+        gregs_fav = str(gregs_game['favorite']).lower().strip()
+        gregs_dog = str(gregs_game['underdog']).lower().strip()
 
         for scored_game in scored_games:
-            home = scored_game['home_team'].lower().strip()
-            away = scored_game['away_team'].lower().strip()
+            if not scored_game or 'home_team' not in scored_game or 'away_team' not in scored_game:
+                continue
+
+            home = str(scored_game.get('home_team', '')).lower().strip()
+            away = str(scored_game.get('away_team', '')).lower().strip()
+
+            if not home or not away:
+                continue
 
             # Check if teams match (in either order)
             fav_matches_home = self._teams_match(gregs_fav, home)

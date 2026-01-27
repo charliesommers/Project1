@@ -162,6 +162,20 @@ def backtest_season(start_date: datetime, end_date: datetime, try_historical_odd
             print(f"  Progress: {i+1}/{len(games_in_range)} games processed...")
 
         try:
+            # Validate game has required fields
+            if not gregs_game:
+                continue
+
+            required_fields = ['favorite', 'underdog', 'total', 'matchup', 'date']
+            if not all(field in gregs_game for field in required_fields):
+                print(f"  ⚠️  Game {i+1} missing required fields, skipping")
+                continue
+
+            # Skip if favorite/underdog are None or empty
+            if not gregs_game['favorite'] or not gregs_game['underdog']:
+                print(f"  ⚠️  Game {i+1} has empty team names, skipping")
+                continue
+
             completed_game = fetcher.match_game(gregs_game, all_completed_games)
             if completed_game:
                 matches.append({
@@ -172,11 +186,12 @@ def backtest_season(start_date: datetime, end_date: datetime, try_historical_odd
                     'matchup': gregs_game['matchup'],
                     'date': gregs_game['date']
                 })
+        except KeyError as e:
+            print(f"  ⚠️  Game {i+1} missing field: {e}")
+            continue
         except Exception as e:
             print(f"  ⚠️  Error matching game {i+1}: {gregs_game.get('matchup', 'unknown')}")
             print(f"     Error: {e}")
-            import traceback
-            traceback.print_exc()
             continue
 
     print(f"✓ Matched {len(matches)}/{len(games_in_range)} games")

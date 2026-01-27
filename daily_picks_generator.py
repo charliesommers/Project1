@@ -60,36 +60,67 @@ class DailyPicksGenerator:
                 continue
 
             # Get spreads
-            gregs_spread = gregs_game.get('spread')
-            sportsbook_spread = sportsbook_game.get('spread')
+            gregs_spread = gregs_game.get('spread')  # Always favorite's spread (negative)
+            sportsbook_home_spread = sportsbook_game.get('spread')  # Home team's spread
 
-            if gregs_spread is None or sportsbook_spread is None:
+            if gregs_spread is None or sportsbook_home_spread is None:
                 continue
 
-            # Calculate edge (difference in spreads)
+            # Get teams
+            favorite = gregs_game['favorite']
+            underdog = gregs_game['underdog']
+            home_team = sportsbook_game.get('home_team', '')
+            away_team = sportsbook_game.get('away_team', '')
+
+            # Normalize sportsbook spread to favorite's perspective
+            # If favorite is home, use home spread directly
+            # If favorite is away, flip the spread sign
+            if self._teams_match(favorite, home_team):
+                # Favorite is home
+                sportsbook_spread = sportsbook_home_spread
+            elif self._teams_match(favorite, away_team):
+                # Favorite is away, flip the spread
+                sportsbook_spread = -sportsbook_home_spread
+            else:
+                # Can't determine which team is favorite in sportsbook data
+                continue
+
+            # Now both spreads are from favorite's perspective (both negative)
+            # Calculate edge
             edge = abs(gregs_spread - sportsbook_spread)
 
+            # Determine pick recommendation
+            # If Greg's spread is MORE negative (e.g., -10 vs -7):
+            #   Greg thinks favorite will win by more → Bet FAVORITE at sportsbook line (-7)
+            # If Greg's spread is LESS negative (e.g., -5 vs -10):
+            #   Greg thinks favorite will win by less → Bet UNDERDOG at sportsbook line (+10)
+            if gregs_spread < sportsbook_spread:
+                recommended_team = favorite
+                recommended_spread = sportsbook_spread
+            else:
+                recommended_team = underdog
+                recommended_spread = -sportsbook_spread  # Flip to underdog's perspective
+
             # Get conference
-            conference = get_conference(gregs_game['favorite'])
+            conference = get_conference(favorite)
             if conference == 'Other':
-                conference = get_conference(gregs_game['underdog'])
+                conference = get_conference(underdog)
 
             # Filter by conference if specified
             if conferences and conference not in conferences:
                 continue
 
-            # Get away/home teams
-            away_team = sportsbook_game.get('away_team', '')
-            home_team = sportsbook_game.get('home_team', '')
-
             spread_picks.append({
                 'date': gregs_game['date'],
                 'matchup': gregs_game['matchup'],
-                'favorite': gregs_game['favorite'],
-                'underdog': gregs_game['underdog'],
+                'favorite': favorite,
+                'underdog': underdog,
                 'gregs_spread': gregs_spread,
                 'sportsbook_spread': sportsbook_spread,
+                'sportsbook_home_spread': sportsbook_home_spread,  # Original for reference
                 'edge': edge,
+                'recommended_team': recommended_team,
+                'recommended_spread': recommended_spread,
                 'conference': conference,
                 'game_time': sportsbook_game.get('commence_time', ''),
                 'bookmaker': sportsbook_game.get('source_bookmaker', ''),

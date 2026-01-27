@@ -266,20 +266,11 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            # Determine which team Greg is betting on
-            # If Greg's spread is MORE negative, he favors the FAVORITE more
-            # If Greg's spread is LESS negative, he favors the UNDERDOG
-            favorite = clean_team_name(pick['favorite'])
-            underdog = clean_team_name(pick['underdog'])
+            # Use the pre-calculated recommended team and spread
+            recommended_team = clean_team_name(pick['recommended_team'])
+            recommended_spread = pick['recommended_spread']
 
-            if pick['gregs_spread'] < pick['sportsbook_spread']:
-                # Greg's line is more negative = bet FAVORITE
-                greg_pick = f"BET {favorite}"
-            else:
-                # Greg's line is less negative = bet UNDERDOG
-                greg_pick = f"BET {underdog}"
-
-            text += f"{i}. {greg_pick}\n"
+            text += f"{i}. BET {recommended_team} {recommended_spread:+.1f}\n"
             text += f"{matchup_display} ({pick['conference']})\n"
             text += f"{game_time_str} CST\n"
             text += f"Edge: {pick['edge']:.1f} pts\n"

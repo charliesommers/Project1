@@ -75,10 +75,13 @@ class DailyPicksGenerator:
             # Normalize sportsbook spread to favorite's perspective
             # If favorite is home, use home spread directly
             # If favorite is away, flip the spread sign
-            if self._teams_match(favorite, home_team):
+            from scores_fetcher import ScoresFetcher
+            fetcher = ScoresFetcher()
+
+            if fetcher._teams_match(favorite, home_team):
                 # Favorite is home
                 sportsbook_spread = sportsbook_home_spread
-            elif self._teams_match(favorite, away_team):
+            elif fetcher._teams_match(favorite, away_team):
                 # Favorite is away, flip the spread
                 sportsbook_spread = -sportsbook_home_spread
             else:

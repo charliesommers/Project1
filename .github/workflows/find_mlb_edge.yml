@@ -1,0 +1,41 @@
+name: Find MLB Edge
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: false
+        default: '2025-03-01'
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: false
+        default: ''
+
+jobs:
+  find-edge:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Find MLB betting edge
+      run: |
+        if [ -z "${{ github.event.inputs.end_date }}" ]; then
+          # No end date specified, use today
+          python find_mlb_edge.py "${{ github.event.inputs.start_date }}"
+        else
+          # Both dates specified
+          python find_mlb_edge.py "${{ github.event.inputs.start_date }}" "${{ github.event.inputs.end_date }}"
+        fi

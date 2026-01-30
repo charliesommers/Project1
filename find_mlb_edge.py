@@ -87,7 +87,53 @@ def match_teams(team1: str, team2: str) -> bool:
     """Check if team names match."""
     t1 = team1.lower().strip()
     t2 = team2.lower().strip()
-    return t1 in t2 or t2 in t1
+
+    # Direct match
+    if t1 == t2 or t1 in t2 or t2 in t1:
+        return True
+
+    # MLB team name variations
+    team_aliases = {
+        'yankees': ['new york yankees', 'ny yankees', 'nyy'],
+        'mets': ['new york mets', 'ny mets', 'nym'],
+        'red sox': ['boston red sox', 'redsox'],
+        'white sox': ['chicago white sox', 'whitesox', 'chw'],
+        'cubs': ['chicago cubs', 'chc'],
+        'dodgers': ['los angeles dodgers', 'la dodgers', 'lad'],
+        'angels': ['los angeles angels', 'la angels', 'laa'],
+        'giants': ['san francisco giants', 'sf giants', 'sfg'],
+        'athletics': ['oakland athletics', "oakland a's", 'oak'],
+        'padres': ['san diego padres', 'sd padres', 'sdp'],
+        'mariners': ['seattle mariners', 'sea'],
+        'astros': ['houston astros', 'hou'],
+        'rangers': ['texas rangers', 'tex'],
+        'twins': ['minnesota twins', 'min'],
+        'tigers': ['detroit tigers', 'det'],
+        'indians': ['cleveland indians', 'cleveland guardians', 'guardians', 'cle'],
+        'guardians': ['cleveland guardians', 'cleveland indians', 'cle'],
+        'royals': ['kansas city royals', 'kc royals', 'kcr'],
+        'orioles': ['baltimore orioles', 'bal'],
+        'rays': ['tampa bay rays', 'tb rays', 'tbr'],
+        'blue jays': ['toronto blue jays', 'tor'],
+        'braves': ['atlanta braves', 'atl'],
+        'marlins': ['miami marlins', 'mia'],
+        'phillies': ['philadelphia phillies', 'phi'],
+        'nationals': ['washington nationals', 'was'],
+        'brewers': ['milwaukee brewers', 'mil'],
+        'cardinals': ['st louis cardinals', 'st. louis cardinals', 'stl'],
+        'pirates': ['pittsburgh pirates', 'pit'],
+        'reds': ['cincinnati reds', 'cin'],
+        'diamondbacks': ['arizona diamondbacks', 'ari', 'dbacks', 'd-backs'],
+        'rockies': ['colorado rockies', 'col'],
+    }
+
+    # Check aliases
+    for nickname, aliases in team_aliases.items():
+        if nickname in t1 or any(alias in t1 for alias in aliases):
+            if nickname in t2 or any(alias in t2 for alias in aliases):
+                return True
+
+    return False
 
 
 def calculate_roi(wins: int, losses: int) -> Tuple[float, float]:

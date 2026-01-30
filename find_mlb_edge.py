@@ -279,9 +279,22 @@ def find_edge(start_date: datetime, end_date: datetime):
 
     # Match games
     print("\n🔗 Matching games...")
+
+    # DEBUG: Show sample team names
+    print("\nDEBUG - Sample Greg's team names:")
+    for i, game in enumerate(games_in_range[:5]):
+        print(f"  {i+1}. Away: '{game['away_team']}' | Home: '{game['home_team']}'")
+
+    print("\nDEBUG - Sample ESPN team names:")
+    for i, game in enumerate(all_scores[:5]):
+        print(f"  {i+1}. Away: '{game['away_team']}' | Home: '{game['home_team']}'")
+    print()
+
     matches = []
+    unmatched_count = 0
 
     for gregs_game in games_in_range:
+        matched = False
         for score_game in all_scores:
             if match_teams(gregs_game['away_team'], score_game['away_team']) and \
                match_teams(gregs_game['home_team'], score_game['home_team']):
@@ -295,9 +308,16 @@ def find_edge(start_date: datetime, end_date: datetime):
                     'favorite': gregs_game.get('favorite'),
                     'underdog': gregs_game.get('underdog')
                 })
+                matched = True
                 break
 
-    print(f"✓ Matched {len(matches)} games")
+        if not matched:
+            unmatched_count += 1
+            if unmatched_count <= 5:  # Show first 5 unmatched
+                print(f"  ✗ No match: {gregs_game['away_team']} @ {gregs_game['home_team']}")
+
+    print(f"\n✓ Matched {len(matches)} games")
+    print(f"✗ Unmatched {unmatched_count} games")
     print()
 
     if len(matches) < 10:

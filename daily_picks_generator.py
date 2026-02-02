@@ -104,6 +104,13 @@ class DailyPicksGenerator:
                 recommended_team = underdog
                 recommended_spread = -sportsbook_spread  # Flip to underdog's perspective
 
+            # Validation: Edge should make sense
+            # If edge is very large (>10), print warning for manual review
+            if edge > 10:
+                print(f"⚠️  Large edge detected ({edge:.1f}): {favorite} vs {underdog}")
+                print(f"   Greg: {gregs_spread:+.1f} | Book: {sportsbook_spread:+.1f}")
+                print(f"   Recommendation: {recommended_team} {recommended_spread:+.1f}")
+
             # Get conference
             conference = get_conference(favorite)
             if conference == 'Other':

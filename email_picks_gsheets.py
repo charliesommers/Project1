@@ -291,17 +291,26 @@ def get_picks_text():
             'sort_team': pick.get('away_team', '').lower()
         })
 
-    # Add games without odds (pending) - keep in Greg's original order
+    # Add games without odds (pending) - sort chronologically by date
     for idx, game in enumerate(games_without_odds):
-        # Sort pending games after timed games, but preserve Greg's order
-        # Use ZZZZ prefix + index to maintain original order
-        sort_time = f'ZZZZ{idx:04d}'
+        # Use the game's date for sorting
+        # Format as ISO timestamp at end of day so pending games appear after games with times on same day
+        game_date = game.get('date')
+        if game_date:
+            # Put pending games at 11:59 PM on their date
+            sort_time = game_date.strftime('%Y-%m-%dT23:59:59Z')
+        else:
+            # Fallback to end
+            sort_time = f'ZZZZ{idx:04d}'
+
+        # Sort by away team name alphabetically within same time
+        away_team = game.get('favorite', '') if game.get('favorite') else ''
 
         all_games_list.append({
             'type': 'pending',
             'data': game,
             'sort_time': sort_time,
-            'sort_team': ''  # Empty string since we're using index for order
+            'sort_team': away_team.lower()
         })
 
     # Sort combined list by time, then away team

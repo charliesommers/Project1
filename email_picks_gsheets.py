@@ -291,26 +291,30 @@ def get_picks_text():
             'sort_team': pick.get('away_team', '').lower()
         })
 
-    # Add games without odds (pending) - sort chronologically by date
+    # Add games without odds (pending) - sort alphabetically at bottom (Bet365 style)
     for idx, game in enumerate(games_without_odds):
-        # Use the game's date for sorting
-        # Format as ISO timestamp at end of day so pending games appear after games with times on same day
-        game_date = game.get('date')
-        if game_date:
-            # Put pending games at 11:59 PM on their date
-            sort_time = game_date.strftime('%Y-%m-%dT23:59:59Z')
-        else:
-            # Fallback to end
-            sort_time = f'ZZZZ{idx:04d}'
+        # Put ALL pending games at the very bottom (after all timed games)
+        # Sort alphabetically by away team
 
-        # Sort by away team name alphabetically within same time
-        away_team = game.get('favorite', '') if game.get('favorite') else ''
+        # Determine away team for sorting
+        home_team_name = game.get('home_team')
+        favorite = game.get('favorite', '')
+        underdog = game.get('underdog', '')
+
+        # Figure out which is away based on who is home
+        if home_team_name:
+            if home_team_name.lower() == underdog.lower():
+                away_team = favorite
+            else:
+                away_team = underdog
+        else:
+            away_team = favorite
 
         all_games_list.append({
             'type': 'pending',
             'data': game,
-            'sort_time': sort_time,
-            'sort_team': away_team.lower()
+            'sort_time': 'ZZZZZZZZ',  # All pending games at very end
+            'sort_team': away_team.lower()  # Sort alphabetically by away team
         })
 
     # Sort combined list by time, then away team

@@ -78,38 +78,70 @@ class DailyPicksGenerator:
             from scores_fetcher import ScoresFetcher
             fetcher = ScoresFetcher()
 
-            if fetcher._teams_match(favorite, home_team):
-                # Favorite is home
+            favorite_is_home = fetcher._teams_match(favorite, home_team)
+            favorite_is_away = fetcher._teams_match(favorite, away_team)
+
+            if favorite_is_home:
+                # Favorite is home - use home spread directly
                 sportsbook_spread = sportsbook_home_spread
-            elif fetcher._teams_match(favorite, away_team):
-                # Favorite is away, flip the spread
+            elif favorite_is_away:
+                # Favorite is away - flip the spread sign
                 sportsbook_spread = -sportsbook_home_spread
             else:
                 # Can't determine which team is favorite in sportsbook data
+                # This happens when team names don't match
+                print(f"⚠️  Team matching failed: {favorite} vs {underdog}")
+                print(f"   Sportsbook: {away_team} @ {home_team}")
+                print(f"   Skipping spread pick for this game")
                 continue
 
-            # Now both spreads are from favorite's perspective (both negative)
+            # Now both spreads are from favorite's perspective (both should be negative)
             # Calculate edge
             edge = abs(gregs_spread - sportsbook_spread)
 
             # Determine pick recommendation
-            # If Greg's spread is MORE negative (e.g., -10 vs -7):
-            #   Greg thinks favorite will win by more → Bet FAVORITE at sportsbook line (-7)
-            # If Greg's spread is LESS negative (e.g., -5 vs -10):
-            #   Greg thinks favorite will win by less → Bet UNDERDOG at sportsbook line (+10)
+            # Logic explanation with examples:
+            #
+            # Example 1: Greg -2, Vegas -5 (underdog perspective: Greg +2, Vegas +5)
+            #   - Greg thinks favorite by 2, Vegas thinks favorite by 5
+            #   - Greg's spread (-2) > Vegas spread (-5) [less negative]
+            #   - Greg thinks favorite will win by LESS than Vegas thinks
+            #   - Bet UNDERDOG at Vegas +5 (goes to else branch)
+            #
+            # Example 2: Greg -3, Vegas -1 (underdog perspective: Greg +3, Vegas +1)
+            #   - Greg thinks favorite by 3, Vegas thinks favorite by 1
+            #   - Greg's spread (-3) < Vegas spread (-1) [more negative]
+            #   - Greg thinks favorite will win by MORE than Vegas thinks
+            #   - Bet FAVORITE at Vegas -1 (goes to if branch)
+            #
             if gregs_spread < sportsbook_spread:
+                # Greg's spread is MORE negative → Bet FAVORITE
                 recommended_team = favorite
                 recommended_spread = sportsbook_spread
             else:
+                # Greg's spread is LESS negative → Bet UNDERDOG
                 recommended_team = underdog
                 recommended_spread = -sportsbook_spread  # Flip to underdog's perspective
 
-            # Validation: Edge should make sense
-            # If edge is very large (>10), print warning for manual review
+            # Validation: Check for data quality issues
             if edge > 10:
                 print(f"⚠️  Large edge detected ({edge:.1f}): {favorite} vs {underdog}")
-                print(f"   Greg: {gregs_spread:+.1f} | Book: {sportsbook_spread:+.1f}")
+                print(f"   Greg's spread: {gregs_spread:+.1f} (favorite's perspective)")
+                print(f"   Vegas spread: {sportsbook_spread:+.1f} (favorite's perspective)")
                 print(f"   Recommendation: {recommended_team} {recommended_spread:+.1f}")
+                print(f"   Favorite is: {'home' if favorite_is_home else 'away'}")
+                print(f"   Original sportsbook home spread: {sportsbook_home_spread:+.1f}")
+
+            # Additional validation: Check spread signs make sense
+            if gregs_spread > 0:
+                print(f"⚠️  Warning: Greg's spread is positive ({gregs_spread:+.1f}) for {favorite}")
+                print(f"   Expected favorite's spread to be negative")
+                print(f"   Game: {favorite} vs {underdog}")
+
+            if abs(sportsbook_spread) > 50:
+                print(f"⚠️  Warning: Sportsbook spread is unusually large ({sportsbook_spread:+.1f})")
+                print(f"   Game: {away_team} @ {home_team}")
+                print(f"   This may indicate a normalization error")
 
             # Get conference
             conference = get_conference(favorite)

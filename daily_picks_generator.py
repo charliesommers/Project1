@@ -80,13 +80,28 @@ class DailyPicksGenerator:
 
             favorite_is_home = fetcher._teams_match(favorite, home_team)
             favorite_is_away = fetcher._teams_match(favorite, away_team)
+            underdog_is_home = fetcher._teams_match(underdog, home_team)
+            underdog_is_away = fetcher._teams_match(underdog, away_team)
+
+            # DEBUG: Print matching details for investigation
+            print(f"\n🔍 DEBUG - Spread normalization:")
+            print(f"   Greg's game: {favorite} (fav) vs {underdog} (dog)")
+            print(f"   Sportsbook: {away_team} @ {home_team}")
+            print(f"   Greg's spread (favorite): {gregs_spread:+.1f}")
+            print(f"   Sportsbook home spread: {sportsbook_home_spread:+.1f}")
+            print(f"   Favorite matches home? {favorite_is_home}")
+            print(f"   Favorite matches away? {favorite_is_away}")
+            print(f"   Underdog matches home? {underdog_is_home}")
+            print(f"   Underdog matches away? {underdog_is_away}")
 
             if favorite_is_home:
                 # Favorite is home - use home spread directly
                 sportsbook_spread = sportsbook_home_spread
+                print(f"   → Favorite is HOME, using home spread directly: {sportsbook_spread:+.1f}")
             elif favorite_is_away:
                 # Favorite is away - flip the spread sign
                 sportsbook_spread = -sportsbook_home_spread
+                print(f"   → Favorite is AWAY, flipping home spread: {sportsbook_spread:+.1f}")
             else:
                 # Can't determine which team is favorite in sportsbook data
                 # This happens when team names don't match

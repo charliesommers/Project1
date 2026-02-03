@@ -52,16 +52,6 @@ class DailyPicksGenerator:
         """
         spread_picks = []
 
-        # DEBUG: Show Greg's games involving Buffalo, Ohio, or WMU
-        print("\n🔍 DEBUG - Greg's games with Buffalo/Ohio/WMU:")
-        for game in gregs_games:
-            fav = game.get('favorite', '').lower()
-            dog = game.get('underdog', '').lower()
-            if 'buffalo' in fav or 'buffalo' in dog or \
-               'ohio' in fav or 'ohio' in dog or \
-               'western' in fav or 'western' in dog:
-                print(f"   {game.get('favorite')} vs {game.get('underdog')} (spread: {game.get('spread')})")
-
         for gregs_game in gregs_games:
             # Find matching sportsbook game
             sportsbook_game = self._match_game(gregs_game, sportsbook_data)
@@ -90,28 +80,13 @@ class DailyPicksGenerator:
 
             favorite_is_home = fetcher._teams_match(favorite, home_team)
             favorite_is_away = fetcher._teams_match(favorite, away_team)
-            underdog_is_home = fetcher._teams_match(underdog, home_team)
-            underdog_is_away = fetcher._teams_match(underdog, away_team)
-
-            # DEBUG: Print matching details for investigation
-            print(f"\n🔍 DEBUG - Spread normalization:")
-            print(f"   Greg's game: {favorite} (fav) vs {underdog} (dog)")
-            print(f"   Sportsbook: {away_team} @ {home_team}")
-            print(f"   Greg's spread (favorite): {gregs_spread:+.1f}")
-            print(f"   Sportsbook home spread: {sportsbook_home_spread:+.1f}")
-            print(f"   Favorite matches home? {favorite_is_home}")
-            print(f"   Favorite matches away? {favorite_is_away}")
-            print(f"   Underdog matches home? {underdog_is_home}")
-            print(f"   Underdog matches away? {underdog_is_away}")
 
             if favorite_is_home:
                 # Favorite is home - use home spread directly
                 sportsbook_spread = sportsbook_home_spread
-                print(f"   → Favorite is HOME, using home spread directly: {sportsbook_spread:+.1f}")
             elif favorite_is_away:
                 # Favorite is away - flip the spread sign
                 sportsbook_spread = -sportsbook_home_spread
-                print(f"   → Favorite is AWAY, flipping home spread: {sportsbook_spread:+.1f}")
             else:
                 # Can't determine which team is favorite in sportsbook data
                 # This happens when team names don't match
@@ -301,20 +276,8 @@ class DailyPicksGenerator:
             away = sb_game.get('away_team', '')
 
             # Check if teams match
-            fav_home = fetcher._teams_match(gregs_fav, home)
-            dog_away = fetcher._teams_match(gregs_dog, away)
-            fav_away = fetcher._teams_match(gregs_fav, away)
-            dog_home = fetcher._teams_match(gregs_dog, home)
-
-            if (fav_home and dog_away) or (fav_away and dog_home):
-                # DEBUG: Print what matched
-                if gregs_fav.lower() in ['buffalo', 'ohio', 'western michigan'] or \
-                   gregs_dog.lower() in ['buffalo', 'ohio', 'western michigan']:
-                    print(f"\n🔍 GAME MATCH DEBUG:")
-                    print(f"   Greg: {gregs_fav} vs {gregs_dog}")
-                    print(f"   Sportsbook: {away} @ {home}")
-                    print(f"   Fav→Home: {fav_home}, Dog→Away: {dog_away}")
-                    print(f"   Fav→Away: {fav_away}, Dog→Home: {dog_home}")
+            if (fetcher._teams_match(gregs_fav, home) and fetcher._teams_match(gregs_dog, away)) or \
+               (fetcher._teams_match(gregs_fav, away) and fetcher._teams_match(gregs_dog, home)):
                 return sb_game
 
         return None

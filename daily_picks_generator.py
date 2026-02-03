@@ -52,6 +52,16 @@ class DailyPicksGenerator:
         """
         spread_picks = []
 
+        # DEBUG: Show Greg's games involving Buffalo, Ohio, or WMU
+        print("\n🔍 DEBUG - Greg's games with Buffalo/Ohio/WMU:")
+        for game in gregs_games:
+            fav = game.get('favorite', '').lower()
+            dog = game.get('underdog', '').lower()
+            if 'buffalo' in fav or 'buffalo' in dog or \
+               'ohio' in fav or 'ohio' in dog or \
+               'western' in fav or 'western' in dog:
+                print(f"   {game.get('favorite')} vs {game.get('underdog')} (spread: {game.get('spread')})")
+
         for gregs_game in gregs_games:
             # Find matching sportsbook game
             sportsbook_game = self._match_game(gregs_game, sportsbook_data)
@@ -291,8 +301,20 @@ class DailyPicksGenerator:
             away = sb_game.get('away_team', '')
 
             # Check if teams match
-            if (fetcher._teams_match(gregs_fav, home) and fetcher._teams_match(gregs_dog, away)) or \
-               (fetcher._teams_match(gregs_fav, away) and fetcher._teams_match(gregs_dog, home)):
+            fav_home = fetcher._teams_match(gregs_fav, home)
+            dog_away = fetcher._teams_match(gregs_dog, away)
+            fav_away = fetcher._teams_match(gregs_fav, away)
+            dog_home = fetcher._teams_match(gregs_dog, home)
+
+            if (fav_home and dog_away) or (fav_away and dog_home):
+                # DEBUG: Print what matched
+                if gregs_fav.lower() in ['buffalo', 'ohio', 'western michigan'] or \
+                   gregs_dog.lower() in ['buffalo', 'ohio', 'western michigan']:
+                    print(f"\n🔍 GAME MATCH DEBUG:")
+                    print(f"   Greg: {gregs_fav} vs {gregs_dog}")
+                    print(f"   Sportsbook: {away} @ {home}")
+                    print(f"   Fav→Home: {fav_home}, Dog→Away: {dog_away}")
+                    print(f"   Fav→Away: {fav_away}, Dog→Home: {dog_home}")
                 return sb_game
 
         return None

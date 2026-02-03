@@ -468,17 +468,23 @@ class ScoresFetcher:
             'trojans', 'utes', 'volunteers', 'wildcats', 'wolverines', 'wolfpack'
         ]
 
+        # Remove mascots only if there's a university name before it
+        # This prevents "Buffalo" (university) from becoming ""
         for mascot in mascots:
-            team1 = team1.replace(mascot, '').strip()
-            team2 = team2.replace(mascot, '').strip()
+            # Only remove if the mascot isn't the entire team name
+            if team1 != mascot and mascot in team1:
+                team1 = team1.replace(mascot, '').strip()
+            if team2 != mascot and mascot in team2:
+                team2 = team2.replace(mascot, '').strip()
 
         # Direct match
         if team1 == team2:
             return True
 
-        # Contains match
-        if team1 in team2 or team2 in team1:
-            return True
+        # Contains match (require minimum 4 characters to prevent false positives)
+        if len(team1) >= 4 and len(team2) >= 4:
+            if team1 in team2 or team2 in team1:
+                return True
 
         # Common abbreviations and variations
         replacements = {
@@ -495,7 +501,8 @@ class ScoresFetcher:
             'lsu': 'louisiana state',
             'ole miss': 'mississippi',
             'miami fl': 'miami',
-            'miami oh': 'miami ohio',
+            'miami oh': 'miami (ohio)',  # Use parentheses to prevent substring match with "ohio"
+            'miami (oh)': 'miami (ohio)',
             'vcu': 'virginia commonwealth',
             'usc': 'southern california',
             'unc': 'north carolina',
@@ -514,8 +521,10 @@ class ScoresFetcher:
         if t1_normalized == t2_normalized:
             return True
 
-        if t1_normalized in t2_normalized or t2_normalized in t1_normalized:
-            return True
+        # Substring match on normalized (require minimum 4 characters)
+        if len(t1_normalized) >= 4 and len(t2_normalized) >= 4:
+            if t1_normalized in t2_normalized or t2_normalized in t1_normalized:
+                return True
 
         return False
 

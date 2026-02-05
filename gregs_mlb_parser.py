@@ -86,18 +86,19 @@ class GregsMLBParser:
     def parse_game_pair(self, row1: pd.Series, row2: pd.Series, game_date: datetime) -> Optional[Dict]:
         """
         Parse a pair of rows representing one game.
-        MLB format: Row 1 (B2) = Home team, Row 2 (B3) = Road/Away team
+        MLB format: Row 1 (B2) = Away team, Row 2 (B3) = Home team
+        Example: B2="Reds", B3="Mets" -> "Reds @ Mets"
 
         Args:
-            row1: First row (home team)
-            row2: Second row (road/away team)
+            row1: First row (away team)
+            row2: Second row (home team)
             game_date: Date of the game
 
         Returns:
             Dictionary with game data or None if invalid
         """
-        home_team = row1.get('Team', '')  # B2 = home
-        away_team = row2.get('Team', '')  # B3 = road/away
+        away_team = row1.get('Team', '')  # B2 = away
+        home_team = row2.get('Team', '')  # B3 = home
         line1 = row1.get("Greg's Line")
         line2 = row2.get("Greg's Line")
 

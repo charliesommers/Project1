@@ -50,12 +50,15 @@ for sheet_name in date_sheets:
         if val:
             print(f"  Col {i}: '{val}'")
 
-    # Look at column B/C (indices 1/2) which parser currently reads
-    print("\nColumn B (1) and C (2) - first 12 rows:")
+    # Look at columns A, B, C, D, E, F (indices 0-5)
+    print("\nColumns A through F - first 12 rows:")
     for row in range(min(12, len(df))):
-        col_b = df.iloc[row, 1] if len(df.columns) > 1 and not pd.isna(df.iloc[row, 1]) else "---"
-        col_c = df.iloc[row, 2] if len(df.columns) > 2 and not pd.isna(df.iloc[row, 2]) else "---"
-        print(f"  Row {row}: B='{col_b}' | C='{col_c}'")
+        values = []
+        for col in range(min(6, len(df.columns))):
+            val = df.iloc[row, col] if not pd.isna(df.iloc[row, col]) else "---"
+            col_name = ['A', 'B', 'C', 'D', 'E', 'F'][col]
+            values.append(f"{col_name}='{val}'")
+        print(f"  Row {row}: {' | '.join(values)}")
 
     # Check if column A might have team names
     print("\nColumn A (0) - first 12 rows:")

@@ -99,43 +99,35 @@ class GregsMLBParser:
         """
         away_team = row1.get('Team', '')  # B2 = away
         home_team = row2.get('Team', '')  # B3 = home
-        line1 = row1.get("Greg's Line")
-        line2 = row2.get("Greg's Line")
+        away_run_line = row1.get("Greg's Line")
+        home_run_line = row2.get("Greg's Line")
+        total = row1.get('Total')  # Shared total from column F
 
         # Skip if no data
-        if not home_team or not away_team or pd.isna(line1) or pd.isna(line2):
+        if not home_team or not away_team or pd.isna(away_run_line) or pd.isna(home_run_line) or pd.isna(total):
             return None
 
-        # Convert lines to floats
+        # Convert to floats
         try:
-            line1 = float(line1)
-            line2 = float(line2)
+            away_run_line = float(away_run_line)
+            home_run_line = float(home_run_line)
+            total = float(total)
         except (ValueError, TypeError):
             return None
 
-        # Determine run line and total
-        # Run line is typically -1.5/+1.5 (small absolute value)
-        # Total is typically 7-12 range (larger value)
-        if abs(line1) < 5 and line2 > 5:
-            # Home team has run line, away team has total
-            run_line = line1
-            total = line2
-        elif abs(line2) < 5 and line1 > 5:
-            # Away team has run line, home team has total
-            run_line = line2
-            total = line1
-        else:
-            # Can't clearly determine, skip this game
-            return None
-
-        # Determine favorite/underdog based on run line
-        # Negative run line = favorite
-        if run_line < 0:
-            favorite = home_team
-            underdog = away_team
-        else:
+        # Determine favorite/underdog based on run lines
+        # One team will have negative run line (favorite), other positive (underdog)
+        if away_run_line < 0:
             favorite = away_team
             underdog = home_team
+            run_line = abs(away_run_line)
+        elif home_run_line < 0:
+            favorite = home_team
+            underdog = away_team
+            run_line = abs(home_run_line)
+        else:
+            # Can't determine favorite, skip
+            return None
 
         return {
             'date': game_date,
@@ -143,10 +135,10 @@ class GregsMLBParser:
             'home_team': home_team,
             'favorite': favorite,
             'underdog': underdog,
-            'run_line': abs(run_line),  # Store as positive
+            'run_line': run_line,  # Already stored as positive
             'total': total,
             'matchup': f"{away_team} @ {home_team}",
-            'run_line_display': f"{favorite} {-abs(run_line):+.1f}",
+            'run_line_display': f"{favorite} {-run_line:+.1f}",
             'total_line': f"O/U {total}"
         }
 
@@ -213,8 +205,11 @@ class GregsMLBParser:
                 team1_str = str(team1).strip()
                 team2_str = str(team2).strip()
 
-                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1})
-                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2})
+                # Use total1 as the shared total (both should be same)
+                total = total1 if not pd.isna(total1) else total2
+
+                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1, 'Total': total})
+                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2, 'Total': total})
 
                 game = self.parse_game_pair(row1, row2, game_date)
                 if game:

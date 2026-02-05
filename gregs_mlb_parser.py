@@ -184,31 +184,54 @@ class GregsMLBParser:
 
         games = []
 
-        # MLB typically has games in columns B/C
+        # MLB format:
+        # Column B (index 1): Team name
+        # Column C (index 2): Greg's line (run line like -1.5)
+        # Column F (index 5): Total runs (shared between both teams in a matchup)
         # Try columns B(1), E(4), H(7), etc. similar to CBB
         team_columns = [1, 4, 7, 10, 13, 16, 19, 22, 25]
 
         for team_col in team_columns:
-            line_col = team_col + 1
+            line_col = team_col + 1  # Column C, E, etc.
+            total_col = team_col + 4  # Column F, I, etc. (B=1, F=5, diff=4)
 
-            if team_col >= len(df_raw.columns) or line_col >= len(df_raw.columns):
+            if team_col >= len(df_raw.columns) or total_col >= len(df_raw.columns):
                 continue
 
-            # Process rows in pairs (skip header row 0)
+            # Process rows in pairs based on shared totals (skip header row 0)
             for i in range(1, len(df_raw) - 1, 2):
                 team1 = df_raw.iloc[i, team_col]
                 line1 = df_raw.iloc[i, line_col]
+                total1 = df_raw.iloc[i, total_col]
+
                 team2 = df_raw.iloc[i + 1, team_col]
                 line2 = df_raw.iloc[i + 1, line_col]
+                total2 = df_raw.iloc[i + 1, total_col]
 
+                # Skip if missing data
                 if pd.isna(team1) or pd.isna(team2) or pd.isna(line1) or pd.isna(line2):
                     continue
 
-                row1 = pd.Series({'Team': str(team1).strip(), "Greg's Line": line1})
-                row2 = pd.Series({'Team': str(team2).strip(), "Greg's Line": line2})
+                # Verify rows are same game by checking if they share a total
+                if not pd.isna(total1) and not pd.isna(total2):
+                    try:
+                        if abs(float(total1) - float(total2)) > 0.1:
+                            # Different totals = not same game, skip
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+
+                team1_str = str(team1).strip()
+                team2_str = str(team2).strip()
+
+                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1})
+                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2})
 
                 game = self.parse_game_pair(row1, row2, game_date)
                 if game:
+                    # DEBUG: Print first few games to verify team names
+                    if len(games) < 3:
+                        print(f"DEBUG - Parsed game: {team1_str} @ {team2_str} (Total: {total1 if not pd.isna(total1) else 'N/A'})")
                     games.append(game)
 
         return games

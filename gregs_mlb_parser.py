@@ -165,16 +165,20 @@ class GregsMLBParser:
 
         games = []
 
-        # MLB format:
-        # Column B (index 1): Team name
-        # Column C (index 2): Greg's line (run line like -1.5)
-        # Column F (index 5): Total runs (shared between both teams in a matchup)
-        # Try columns B(1), E(4), H(7), etc. similar to CBB
-        team_columns = [1, 4, 7, 10, 13, 16, 19, 22, 25]
+        # MLB format (per sheet header):
+        # Column A (0): Rotation #
+        # Column B (1): Team name
+        # Column C (2): Starting Pitcher
+        # Column D (3): Moneyline Price
+        # Column E (4): Run Line Price (e.g., "-1.5 +112")
+        # Column F (5): Total Runs (shared between both teams)
+        # Column G (6): Team Runs
+        # Pattern repeats every 7 columns
+        team_columns = [1, 8, 15, 22, 29]  # Columns B, I, P, W, ...
 
         for team_col in team_columns:
-            line_col = team_col + 1  # Column C, E, etc.
-            total_col = team_col + 4  # Column F, I, etc. (B=1, F=5, diff=4)
+            line_col = team_col + 3  # Column E (run line price)
+            total_col = team_col + 4  # Column F (total)
 
             if team_col >= len(df_raw.columns) or total_col >= len(df_raw.columns):
                 continue
@@ -192,6 +196,26 @@ class GregsMLBParser:
                 # Skip if missing data
                 if pd.isna(team1) or pd.isna(team2) or pd.isna(line1) or pd.isna(line2):
                     continue
+
+                # Parse run line from strings like "-1.5 +112" or "(+1.5) +112"
+                # Extract just the spread value (-1.5 or +1.5)
+                try:
+                    line1_str = str(line1).strip()
+                    line2_str = str(line2).strip()
+
+                    # Remove parentheses
+                    line1_str = line1_str.replace('(', '').replace(')', '')
+                    line2_str = line2_str.replace('(', '').replace(')', '')
+
+                    # Split on space and take first part (the spread)
+                    line1_parsed = float(line1_str.split()[0])
+                    line2_parsed = float(line2_str.split()[0])
+                except (ValueError, IndexError, AttributeError):
+                    continue
+
+                # Replace line1/line2 with parsed spreads
+                line1 = line1_parsed
+                line2 = line2_parsed
 
                 # Verify rows are same game by checking if they share a total
                 if not pd.isna(total1) and not pd.isna(total2):

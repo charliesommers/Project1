@@ -86,23 +86,23 @@ class GregsMLBParser:
     def parse_game_pair(self, row1: pd.Series, row2: pd.Series, game_date: datetime) -> Optional[Dict]:
         """
         Parse a pair of rows representing one game.
-        MLB format: Row 1 = Away team, Row 2 = Home team
+        MLB format: Row 1 (B2) = Home team, Row 2 (B3) = Road/Away team
 
         Args:
-            row1: First row (away team)
-            row2: Second row (home team)
+            row1: First row (home team)
+            row2: Second row (road/away team)
             game_date: Date of the game
 
         Returns:
             Dictionary with game data or None if invalid
         """
-        team1 = row1.get('Team', '')
-        team2 = row2.get('Team', '')
+        home_team = row1.get('Team', '')  # B2 = home
+        away_team = row2.get('Team', '')  # B3 = road/away
         line1 = row1.get("Greg's Line")
         line2 = row2.get("Greg's Line")
 
         # Skip if no data
-        if not team1 or not team2 or pd.isna(line1) or pd.isna(line2):
+        if not home_team or not away_team or pd.isna(line1) or pd.isna(line2):
             return None
 
         # Convert lines to floats
@@ -112,41 +112,29 @@ class GregsMLBParser:
         except (ValueError, TypeError):
             return None
 
-        # MLB format: line1 is run line, line2 is total
-        # Run line is typically -1.5/+1.5
-        # Total is typically 7-12 range
+        # Determine run line and total
+        # Run line is typically -1.5/+1.5 (small absolute value)
+        # Total is typically 7-12 range (larger value)
         if abs(line1) < 5 and line2 > 5:
-            # Team 1 (away) has run line, Team 2 (home) has total
-            away_team = team1
-            home_team = team2
+            # Home team has run line, away team has total
             run_line = line1
             total = line2
         elif abs(line2) < 5 and line1 > 5:
-            # Team 2 (home) has run line, Team 1 (away) has total
-            away_team = team2
-            home_team = team1
+            # Away team has run line, home team has total
             run_line = line2
             total = line1
         else:
-            # Try to determine based on which is negative (favorite)
-            if line1 < 0:
-                away_team = team1
-                home_team = team2
-                run_line = line1
-                total = line2
-            else:
-                away_team = team2
-                home_team = team1
-                run_line = line2
-                total = line1
+            # Can't clearly determine, skip this game
+            return None
 
         # Determine favorite/underdog based on run line
+        # Negative run line = favorite
         if run_line < 0:
-            favorite = away_team
-            underdog = home_team
-        else:
             favorite = home_team
             underdog = away_team
+        else:
+            favorite = away_team
+            underdog = home_team
 
         return {
             'date': game_date,
@@ -154,10 +142,10 @@ class GregsMLBParser:
             'home_team': home_team,
             'favorite': favorite,
             'underdog': underdog,
-            'run_line': run_line,
+            'run_line': abs(run_line),  # Store as positive
             'total': total,
             'matchup': f"{away_team} @ {home_team}",
-            'run_line_display': f"{favorite} {run_line:+.1f}",
+            'run_line_display': f"{favorite} {-abs(run_line):+.1f}",
             'total_line': f"O/U {total}"
         }
 

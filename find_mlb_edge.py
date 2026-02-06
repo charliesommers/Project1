@@ -284,10 +284,10 @@ def find_edge(start_date: datetime, end_date: datetime):
 
     results = []
 
-    # Test totals at various thresholds (decimal increments for MLB)
+    # Test totals at various thresholds (0.1 increments for MLB)
     print("Testing TOTALS strategies...")
-    under_thresholds = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
-    over_thresholds = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+    under_thresholds = [round(x * 0.1, 1) for x in range(1, 41)]  # 0.1 to 4.0
+    over_thresholds = [round(x * 0.1, 1) for x in range(1, 41)]  # 0.1 to 4.0
 
     for under_t, over_t in itertools.product(under_thresholds, over_thresholds):
         result = test_totals_strategy(matches, under_t, over_t)

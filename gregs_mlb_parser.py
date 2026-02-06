@@ -102,6 +102,8 @@ class GregsMLBParser:
         away_run_line = row1.get("Greg's Line")
         home_run_line = row2.get("Greg's Line")
         total = row1.get('Total')  # Shared total from column F
+        away_moneyline = row1.get('Moneyline')  # Greg's moneyline for away
+        home_moneyline = row2.get('Moneyline')  # Greg's moneyline for home
 
         # Skip if no data
         if not home_team or not away_team or pd.isna(away_run_line) or pd.isna(home_run_line) or pd.isna(total):
@@ -137,6 +139,8 @@ class GregsMLBParser:
             'underdog': underdog,
             'run_line': run_line,  # Already stored as positive
             'total': total,
+            'away_moneyline': away_moneyline,  # Greg's moneyline for away team
+            'home_moneyline': home_moneyline,  # Greg's moneyline for home team
             'matchup': f"{away_team} @ {home_team}",
             'run_line_display': f"{favorite} {-run_line:+.1f}",
             'total_line': f"O/U {total}"
@@ -177,6 +181,7 @@ class GregsMLBParser:
         team_columns = [1, 8, 15, 22, 29]  # Columns B, I, P, W, ...
 
         for team_col in team_columns:
+            moneyline_col = team_col + 2  # Column D (moneyline price)
             line_col = team_col + 3  # Column E (run line price)
             total_col = team_col + 4  # Column F (total)
 
@@ -186,10 +191,12 @@ class GregsMLBParser:
             # Process rows in pairs based on shared totals (skip header row 0)
             for i in range(1, len(df_raw) - 1, 2):
                 team1 = df_raw.iloc[i, team_col]
+                moneyline1 = df_raw.iloc[i, moneyline_col]
                 line1 = df_raw.iloc[i, line_col]
                 total1 = df_raw.iloc[i, total_col]
 
                 team2 = df_raw.iloc[i + 1, team_col]
+                moneyline2 = df_raw.iloc[i + 1, moneyline_col]
                 line2 = df_raw.iloc[i + 1, line_col]
                 total2 = df_raw.iloc[i + 1, total_col]
 
@@ -232,8 +239,22 @@ class GregsMLBParser:
                 # Use total1 as the shared total (both should be same)
                 total = total1 if not pd.isna(total1) else total2
 
-                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1, 'Total': total})
-                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2, 'Total': total})
+                # Parse moneyline prices (e.g., "+146", "-133")
+                ml1 = None
+                ml2 = None
+                if not pd.isna(moneyline1):
+                    try:
+                        ml1 = int(str(moneyline1).strip().replace('+', ''))
+                    except (ValueError, AttributeError):
+                        pass
+                if not pd.isna(moneyline2):
+                    try:
+                        ml2 = int(str(moneyline2).strip().replace('+', ''))
+                    except (ValueError, AttributeError):
+                        pass
+
+                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1, 'Total': total, 'Moneyline': ml1})
+                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2, 'Total': total, 'Moneyline': ml2})
 
                 game = self.parse_game_pair(row1, row2, game_date)
                 if game:

@@ -104,6 +104,8 @@ class GregsMLBParser:
         total = row1.get('Total')  # Shared total from column F
         away_moneyline = row1.get('Moneyline')  # Greg's moneyline for away
         home_moneyline = row2.get('Moneyline')  # Greg's moneyline for home
+        away_runline_odds = row1.get('RunLine_Odds')  # Greg's run line odds for away
+        home_runline_odds = row2.get('RunLine_Odds')  # Greg's run line odds for home
 
         # Skip if no data
         if not home_team or not away_team or pd.isna(away_run_line) or pd.isna(home_run_line) or pd.isna(total):
@@ -139,8 +141,10 @@ class GregsMLBParser:
             'underdog': underdog,
             'run_line': run_line,  # Already stored as positive
             'total': total,
-            'away_moneyline': away_moneyline,  # Greg's moneyline for away team
-            'home_moneyline': home_moneyline,  # Greg's moneyline for home team
+            'away_moneyline': away_moneyline,  # Greg's moneyline price for away
+            'home_moneyline': home_moneyline,  # Greg's moneyline price for home
+            'away_runline_odds': away_runline_odds,  # Greg's run line odds for away
+            'home_runline_odds': home_runline_odds,  # Greg's run line odds for home
             'matchup': f"{away_team} @ {home_team}",
             'run_line_display': f"{favorite} {-run_line:+.1f}",
             'total_line': f"O/U {total}"
@@ -205,7 +209,7 @@ class GregsMLBParser:
                     continue
 
                 # Parse run line from strings like "-1.5 +112" or "(+1.5) +112"
-                # Extract just the spread value (-1.5 or +1.5)
+                # Extract spread (-1.5) and odds (+112)
                 try:
                     line1_str = str(line1).strip()
                     line2_str = str(line2).strip()
@@ -214,15 +218,22 @@ class GregsMLBParser:
                     line1_str = line1_str.replace('(', '').replace(')', '')
                     line2_str = line2_str.replace('(', '').replace(')', '')
 
-                    # Split on space and take first part (the spread)
-                    line1_parsed = float(line1_str.split()[0])
-                    line2_parsed = float(line2_str.split()[0])
+                    # Split on space: first part is spread, second is odds
+                    line1_parts = line1_str.split()
+                    line2_parts = line2_str.split()
+
+                    line1_spread = float(line1_parts[0])
+                    line2_spread = float(line2_parts[0])
+
+                    # Extract odds if present
+                    line1_odds = int(line1_parts[1].replace('+', '')) if len(line1_parts) > 1 else None
+                    line2_odds = int(line2_parts[1].replace('+', '')) if len(line2_parts) > 1 else None
                 except (ValueError, IndexError, AttributeError):
                     continue
 
-                # Replace line1/line2 with parsed spreads
-                line1 = line1_parsed
-                line2 = line2_parsed
+                # Store spreads and odds separately
+                line1 = line1_spread
+                line2 = line2_spread
 
                 # Verify rows are same game by checking if they share a total
                 if not pd.isna(total1) and not pd.isna(total2):
@@ -253,8 +264,8 @@ class GregsMLBParser:
                     except (ValueError, AttributeError):
                         pass
 
-                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1, 'Total': total, 'Moneyline': ml1})
-                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2, 'Total': total, 'Moneyline': ml2})
+                row1 = pd.Series({'Team': team1_str, "Greg's Line": line1, 'Total': total, 'Moneyline': ml1, 'RunLine_Odds': line1_odds})
+                row2 = pd.Series({'Team': team2_str, "Greg's Line": line2, 'Total': total, 'Moneyline': ml2, 'RunLine_Odds': line2_odds})
 
                 game = self.parse_game_pair(row1, row2, game_date)
                 if game:

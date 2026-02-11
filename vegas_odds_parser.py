@@ -26,7 +26,11 @@ class VegasOddsParser:
         """Load the Excel file from URL or path."""
         try:
             if self.file_path.startswith('http'):
-                response = requests.get(self.file_path, timeout=30)
+                # Add headers to avoid 406 errors
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                response = requests.get(self.file_path, headers=headers, timeout=30)
                 response.raise_for_status()
 
                 # Save locally

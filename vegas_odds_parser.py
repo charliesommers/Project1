@@ -7,9 +7,9 @@ import requests
 from datetime import datetime
 from typing import Dict, List, Optional
 
-# Google Drive file ID for Vegas closing lines
-VEGAS_ODDS_GDRIVE_ID = "1zW41Par7mje7XqOp1Hq5XRL8xl4mN-44"
-VEGAS_ODDS_URL = f"https://drive.google.com/uc?export=download&id={VEGAS_ODDS_GDRIVE_ID}"
+# Google Sheets ID for Vegas closing lines
+VEGAS_ODDS_GSHEET_ID = "1E7TIssWO964m7V-JPABPbrAGgOw8cHkQ"
+VEGAS_ODDS_URL = f"https://docs.google.com/spreadsheets/d/{VEGAS_ODDS_GSHEET_ID}/export?format=xlsx"
 
 
 class VegasOddsParser:
@@ -34,30 +34,17 @@ class VegasOddsParser:
                 os.makedirs('data', exist_ok=True)
                 local_path = 'data/vegas_odds.xlsx'
 
-                # For Google Drive, use session with confirm parameter
-                session = requests.Session()
-
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
 
-                # Try direct download first
-                response = session.get(self.file_path, headers=headers, stream=True, timeout=30)
-
-                # Check if we got an HTML confirmation page
-                content_type = response.headers.get('Content-Type', '')
-                if 'text/html' in content_type:
-                    # Try with confirm parameter for Google Drive
-                    url_with_confirm = f"https://drive.google.com/uc?export=download&id={VEGAS_ODDS_GDRIVE_ID}&confirm=t"
-                    response = session.get(url_with_confirm, headers=headers, stream=True, timeout=30)
-
+                # For Google Sheets export, direct download should work
+                response = requests.get(self.file_path, headers=headers, timeout=30)
                 response.raise_for_status()
 
-                # Download in chunks
+                # Save locally
                 with open(local_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
+                    f.write(response.content)
 
                 # Specify engine explicitly for Excel files
                 self.excel_file = pd.ExcelFile(local_path, engine='openpyxl')
@@ -144,6 +131,8 @@ if __name__ == '__main__':
         print("\n❌ Failed to load file")
         print("\nNote: If download fails due to network restrictions, you can:")
         print("1. Download the file manually from:")
-        print("   https://drive.google.com/file/d/1zW41Par7mje7XqOp1Hq5XRL8xl4mN-44/view")
+        print(f"   https://docs.google.com/spreadsheets/d/{VEGAS_ODDS_GSHEET_ID}/edit")
+        print("   (File -> Download -> Microsoft Excel)")
         print("2. Save it as: data/vegas_odds.xlsx")
         print("3. Run: python vegas_odds_parser.py data/vegas_odds.xlsx")
+        print("\nOr run this via GitHub Actions workflow which doesn't have network restrictions.")

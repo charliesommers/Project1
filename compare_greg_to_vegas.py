@@ -258,25 +258,42 @@ def analyze_moneyline_edge(matches: List[Dict]) -> Dict:
     print(f"\n{'='*80}")
     print("AWAY TEAMS - Greg's Price Better Than Vegas")
     print(f"{'='*80}")
-    print(f"{'Diff Bucket':<15} {'Count':<10} {'Wins':<10} {'Win %':<10} {'Edge'}")
+    print(f"{'Greg Edge':<15} {'Record':<15} {'Win %':<10} {'Avg Greg':<12} {'Avg Vegas':<12} {'Edge Value'}")
     print(f"{'-'*80}")
 
     for bucket in sorted(results['away_favorites'].keys()):
         stats = results['away_favorites'][bucket]
         win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        # Implied probability at average Vegas price would need to be calculated
-        print(f"{bucket:<15} {stats['count']:<10} {stats['wins']:<10} {win_pct:<10.1f}%")
+        losses = stats['count'] - stats['wins']
+        record = f"{stats['wins']}-{losses}"
+
+        # Calculate average prices for this bucket
+        bucket_games = [g for g in results['price_differences'] if f"+{(g['away_diff'] // 10) * 10}" == bucket and g['away_diff'] >= 10]
+        avg_greg = sum(g['greg_away_ml'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        avg_vegas = sum(g['vegas_away_ml'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        edge_value = avg_greg - avg_vegas
+
+        print(f"{bucket:<15} {record:<15} {win_pct:<10.1f}% {avg_greg:<12.0f} {avg_vegas:<12.0f} {edge_value:+.0f}")
 
     print(f"\n{'='*80}")
     print("HOME TEAMS - Greg's Price Better Than Vegas")
     print(f"{'='*80}")
-    print(f"{'Diff Bucket':<15} {'Count':<10} {'Wins':<10} {'Win %':<10} {'Edge'}")
+    print(f"{'Greg Edge':<15} {'Record':<15} {'Win %':<10} {'Avg Greg':<12} {'Avg Vegas':<12} {'Edge Value'}")
     print(f"{'-'*80}")
 
     for bucket in sorted(results['home_favorites'].keys()):
         stats = results['home_favorites'][bucket]
         win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        print(f"{bucket:<15} {stats['count']:<10} {stats['wins']:<10} {win_pct:<10.1f}%")
+        losses = stats['count'] - stats['wins']
+        record = f"{stats['wins']}-{losses}"
+
+        # Calculate average prices for this bucket
+        bucket_games = [g for g in results['price_differences'] if f"+{(g['home_diff'] // 10) * 10}" == bucket and g['home_diff'] >= 10]
+        avg_greg = sum(g['greg_home_ml'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        avg_vegas = sum(g['vegas_home_ml'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        edge_value = avg_greg - avg_vegas
+
+        print(f"{bucket:<15} {record:<15} {win_pct:<10.1f}% {avg_greg:<12.0f} {avg_vegas:<12.0f} {edge_value:+.0f}")
 
     return results
 
@@ -357,26 +374,42 @@ def analyze_totals_edge(matches: List[Dict]) -> Dict:
     print(f"\nTotal games analyzed: {len(results['total_differences'])}")
 
     print(f"\n{'='*80}")
-    print("Greg's Total HIGHER Than Vegas")
+    print("Greg's Total HIGHER Than Vegas - BET OVER")
     print(f"{'='*80}")
-    print(f"{'Diff':<10} {'Count':<10} {'Overs':<10} {'Unders':<10} {'Over %'}")
+    print(f"{'Greg Edge':<12} {'Record (O-U)':<15} {'Over %':<10} {'Avg Greg':<12} {'Avg Vegas':<12} {'Edge'}")
     print(f"{'-'*80}")
 
     for bucket in sorted(results['greg_higher'].keys(), key=float):
         stats = results['greg_higher'][bucket]
         over_pct = (stats['over'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        print(f"{bucket:<10} {stats['count']:<10} {stats['over']:<10} {stats['under']:<10} {over_pct:.1f}%")
+        record = f"{stats['over']}-{stats['under']}"
+
+        # Calculate average totals for this bucket
+        bucket_games = [g for g in results['total_differences'] if f"{g['diff']:.1f}" == bucket and g['diff'] > 0]
+        avg_greg = sum(g['greg_total'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        avg_vegas = sum(g['vegas_total'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        edge = float(bucket)
+
+        print(f"+{bucket:<11} {record:<15} {over_pct:<10.1f}% {avg_greg:<12.1f} {avg_vegas:<12.1f} {edge:+.1f}")
 
     print(f"\n{'='*80}")
-    print("Greg's Total LOWER Than Vegas")
+    print("Greg's Total LOWER Than Vegas - BET UNDER")
     print(f"{'='*80}")
-    print(f"{'Diff':<10} {'Count':<10} {'Overs':<10} {'Unders':<10} {'Over %'}")
+    print(f"{'Greg Edge':<12} {'Record (U-O)':<15} {'Under %':<10} {'Avg Greg':<12} {'Avg Vegas':<12} {'Edge'}")
     print(f"{'-'*80}")
 
     for bucket in sorted(results['greg_lower'].keys(), key=float, reverse=True):
         stats = results['greg_lower'][bucket]
-        over_pct = (stats['over'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        print(f"{bucket:<10} {stats['count']:<10} {stats['over']:<10} {stats['under']:<10} {over_pct:.1f}%")
+        under_pct = (stats['under'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        record = f"{stats['under']}-{stats['over']}"
+
+        # Calculate average totals for this bucket
+        bucket_games = [g for g in results['total_differences'] if f"{g['diff']:.1f}" == bucket and g['diff'] < 0]
+        avg_greg = sum(g['greg_total'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        avg_vegas = sum(g['vegas_total'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        edge = float(bucket)
+
+        print(f"{bucket:<12} {record:<15} {under_pct:<10.1f}% {avg_greg:<12.1f} {avg_vegas:<12.1f} {edge:+.1f}")
 
     return results
 
@@ -441,6 +474,10 @@ def analyze_runline_edge(matches: List[Dict]) -> Dict:
             'away_rl_won': away_rl_won,
             'home_rl_won': home_rl_won,
             'score_diff': score_diff,
+            'greg_away_rl': greg_away_rl,
+            'vegas_away_rl': vegas_away_rl,
+            'greg_home_rl': greg_home_rl,
+            'vegas_home_rl': vegas_home_rl,
         })
 
         # Analyze by price difference buckets
@@ -466,26 +503,40 @@ def analyze_runline_edge(matches: List[Dict]) -> Dict:
     print(f"\n{'='*80}")
     print("AWAY TEAMS RUN LINE - Greg's Price Better Than Vegas")
     print(f"{'='*80}")
-    print(f"{'Diff Bucket':<15} {'Count':<10} {'Wins':<10} {'Win %':<10} {'Record'}")
+    print(f"{'Greg Edge':<15} {'Record':<15} {'Win %':<10} {'Avg Greg':<12} {'Avg Vegas':<12} {'Edge Value'}")
     print(f"{'-'*80}")
 
     for bucket in sorted(results['away_runline'].keys()):
         stats = results['away_runline'][bucket]
         win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        record = f"({stats['wins']}-{stats['losses']})"
-        print(f"{bucket:<15} {stats['count']:<10} {stats['wins']:<10} {win_pct:<10.1f}% {record}")
+        record = f"{stats['wins']}-{stats['losses']}"
+
+        # Calculate average prices for this bucket
+        bucket_games = [g for g in results['runline_differences'] if f"+{(g['away_diff'] // 10) * 10}" == bucket and g['away_diff'] >= 10]
+        avg_greg = sum(g['greg_away_rl'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        avg_vegas = sum(g['vegas_away_rl'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        edge_value = avg_greg - avg_vegas
+
+        print(f"{bucket:<15} {record:<15} {win_pct:<10.1f}% {avg_greg:<12.0f} {avg_vegas:<12.0f} {edge_value:+.0f}")
 
     print(f"\n{'='*80}")
     print("HOME TEAMS RUN LINE - Greg's Price Better Than Vegas")
     print(f"{'='*80}")
-    print(f"{'Diff Bucket':<15} {'Count':<10} {'Wins':<10} {'Win %':<10} {'Record'}")
+    print(f"{'Greg Edge':<15} {'Record':<15} {'Win %':<10} {'Avg Greg':<12} {'Avg Vegas':<12} {'Edge Value'}")
     print(f"{'-'*80}")
 
     for bucket in sorted(results['home_runline'].keys()):
         stats = results['home_runline'][bucket]
         win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        record = f"({stats['wins']}-{stats['losses']})"
-        print(f"{bucket:<15} {stats['count']:<10} {stats['wins']:<10} {win_pct:<10.1f}% {record}")
+        record = f"{stats['wins']}-{stats['losses']}"
+
+        # Calculate average prices for this bucket
+        bucket_games = [g for g in results['runline_differences'] if f"+{(g['home_diff'] // 10) * 10}" == bucket and g['home_diff'] >= 10]
+        avg_greg = sum(g['greg_home_rl'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        avg_vegas = sum(g['vegas_home_rl'] for g in bucket_games) / len(bucket_games) if bucket_games else 0
+        edge_value = avg_greg - avg_vegas
+
+        print(f"{bucket:<15} {record:<15} {win_pct:<10.1f}% {avg_greg:<12.0f} {avg_vegas:<12.0f} {edge_value:+.0f}")
 
     return results
 

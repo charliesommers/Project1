@@ -69,7 +69,15 @@ class GregsMLBParser:
             else:
                 return None
 
-            return datetime(year, month, day).date()
+            # Fix for dates that are too far in the past (e.g., "91415" -> 2015 should be 2025)
+            # If the parsed year is more than 5 years ago, add 10 years
+            parsed_date = datetime(year, month, day).date()
+            current_year = datetime.now().year
+            if parsed_date.year < (current_year - 5):
+                year += 10
+                parsed_date = datetime(year, month, day).date()
+
+            return parsed_date
 
         except (ValueError, IndexError):
             return None

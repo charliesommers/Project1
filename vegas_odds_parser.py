@@ -180,6 +180,8 @@ class VegasOddsParser:
                     total = row.get('O/U')
                     over_odds = row.get('Over')
                     under_odds = row.get('Under')
+                    rl_away = row.get('RL Away')
+                    rl_home = row.get('RL Home')
 
                     # Parse integers for odds (may have +/- signs)
                     def parse_odds(val):
@@ -194,6 +196,8 @@ class VegasOddsParser:
                     home_ml = parse_odds(home_ml)
                     over_odds = parse_odds(over_odds)
                     under_odds = parse_odds(under_odds)
+                    rl_away = parse_odds(rl_away)
+                    rl_home = parse_odds(rl_home)
 
                     # Parse total (float)
                     try:
@@ -223,6 +227,8 @@ class VegasOddsParser:
                         'total': total,
                         'over_odds': over_odds,
                         'under_odds': under_odds,
+                        'away_runline_odds': rl_away,
+                        'home_runline_odds': rl_home,
                         'away_score': away_score,
                         'home_score': home_score,
                         'status': status,

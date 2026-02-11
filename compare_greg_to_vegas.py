@@ -115,6 +115,8 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
                 'vegas_total': vg.get('total'),
                 'vegas_over_odds': vg.get('over_odds'),
                 'vegas_under_odds': vg.get('under_odds'),
+                'vegas_away_runline_odds': vg.get('away_runline_odds'),
+                'vegas_home_runline_odds': vg.get('home_runline_odds'),
 
                 # Actual results
                 'away_score': vg.get('away_score'),
@@ -379,6 +381,214 @@ def analyze_totals_edge(matches: List[Dict]) -> Dict:
     return results
 
 
+def analyze_runline_edge(matches: List[Dict]) -> Dict:
+    """
+    Analyze run line pricing differences.
+
+    Finds cases where Greg's run line price differs from Vegas closing line.
+
+    Args:
+        matches: List of matched games
+
+    Returns:
+        Analysis results
+    """
+    print(f"\n{'='*80}")
+    print("RUN LINE PRICE COMPARISON")
+    print(f"{'='*80}")
+
+    results = {
+        'away_runline': defaultdict(lambda: {'count': 0, 'wins': 0, 'losses': 0}),
+        'home_runline': defaultdict(lambda: {'count': 0, 'wins': 0, 'losses': 0}),
+        'runline_differences': [],
+    }
+
+    for match in matches:
+        if match['status'] != 'Final':
+            continue
+
+        greg_away_rl = match.get('greg_away_runline_odds')
+        greg_home_rl = match.get('greg_home_runline_odds')
+        vegas_away_rl = match.get('vegas_away_runline_odds')
+        vegas_home_rl = match.get('vegas_home_runline_odds')
+
+        if not all([greg_away_rl, greg_home_rl, vegas_away_rl, vegas_home_rl]):
+            continue
+
+        away_score = match.get('away_score')
+        home_score = match.get('home_score')
+
+        if away_score is None or home_score is None:
+            continue
+
+        # Determine run line result (typically ±1.5 runs)
+        # Away team covers if they win or lose by less than 1.5
+        # Home team covers if they win by more than 1.5
+        score_diff = away_score - home_score
+        away_rl_won = score_diff > -1.5  # Away covers if they lose by <1.5 or win
+        home_rl_won = score_diff < 1.5  # Home covers if away loses by >1.5
+
+        # Calculate price differences
+        away_diff = greg_away_rl - vegas_away_rl
+        home_diff = greg_home_rl - vegas_home_rl
+
+        results['runline_differences'].append({
+            'date': match['date'],
+            'away_team': match['away_team'],
+            'home_team': match['home_team'],
+            'away_diff': away_diff,
+            'home_diff': home_diff,
+            'away_rl_won': away_rl_won,
+            'home_rl_won': home_rl_won,
+            'score_diff': score_diff,
+        })
+
+        # Analyze by price difference buckets
+        if away_diff >= 10:  # Greg's away RL price is at least 10 points better
+            bucket = f"+{(away_diff // 10) * 10}"
+            results['away_runline'][bucket]['count'] += 1
+            if away_rl_won:
+                results['away_runline'][bucket]['wins'] += 1
+            else:
+                results['away_runline'][bucket]['losses'] += 1
+
+        if home_diff >= 10:  # Greg's home RL price is at least 10 points better
+            bucket = f"+{(home_diff // 10) * 10}"
+            results['home_runline'][bucket]['count'] += 1
+            if home_rl_won:
+                results['home_runline'][bucket]['wins'] += 1
+            else:
+                results['home_runline'][bucket]['losses'] += 1
+
+    # Print results
+    print(f"\nTotal games analyzed: {len(results['runline_differences'])}")
+
+    print(f"\n{'='*80}")
+    print("AWAY TEAMS RUN LINE - Greg's Price Better Than Vegas")
+    print(f"{'='*80}")
+    print(f"{'Diff Bucket':<15} {'Count':<10} {'Wins':<10} {'Win %':<10} {'Record'}")
+    print(f"{'-'*80}")
+
+    for bucket in sorted(results['away_runline'].keys()):
+        stats = results['away_runline'][bucket]
+        win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        record = f"({stats['wins']}-{stats['losses']})"
+        print(f"{bucket:<15} {stats['count']:<10} {stats['wins']:<10} {win_pct:<10.1f}% {record}")
+
+    print(f"\n{'='*80}")
+    print("HOME TEAMS RUN LINE - Greg's Price Better Than Vegas")
+    print(f"{'='*80}")
+    print(f"{'Diff Bucket':<15} {'Count':<10} {'Wins':<10} {'Win %':<10} {'Record'}")
+    print(f"{'-'*80}")
+
+    for bucket in sorted(results['home_runline'].keys()):
+        stats = results['home_runline'][bucket]
+        win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        record = f"({stats['wins']}-{stats['losses']})"
+        print(f"{bucket:<15} {stats['count']:<10} {stats['wins']:<10} {win_pct:<10.1f}% {record}")
+
+    return results
+
+
+def print_summary_report(ml_results: Dict, totals_results: Dict, rl_results: Dict):
+    """Print a clean summary of all edges found."""
+    print(f"\n{'='*80}")
+    print("SUMMARY: ALL BETTING EDGES FOUND")
+    print(f"{'='*80}")
+
+    all_edges = []
+
+    # Collect moneyline edges
+    for bucket, stats in ml_results['away_favorites'].items():
+        win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        if stats['count'] >= 5:  # Only show edges with 5+ games
+            all_edges.append({
+                'type': 'Away ML',
+                'condition': f"Greg {bucket} better",
+                'record': f"{stats['wins']}-{stats['count'] - stats['wins']}",
+                'win_pct': win_pct,
+                'count': stats['count']
+            })
+
+    for bucket, stats in ml_results['home_favorites'].items():
+        win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        if stats['count'] >= 5:
+            all_edges.append({
+                'type': 'Home ML',
+                'condition': f"Greg {bucket} better",
+                'record': f"{stats['wins']}-{stats['count'] - stats['wins']}",
+                'win_pct': win_pct,
+                'count': stats['count']
+            })
+
+    # Collect totals edges (Greg higher)
+    for bucket, stats in totals_results['greg_higher'].items():
+        over_pct = (stats['over'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        if stats['count'] >= 5:
+            all_edges.append({
+                'type': 'Total OVER',
+                'condition': f"Greg +{bucket} runs",
+                'record': f"{stats['over']}-{stats['under']}",
+                'win_pct': over_pct,
+                'count': stats['count']
+            })
+
+    # Collect totals edges (Greg lower - bet UNDER)
+    for bucket, stats in totals_results['greg_lower'].items():
+        under_pct = (stats['under'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        if stats['count'] >= 5:
+            all_edges.append({
+                'type': 'Total UNDER',
+                'condition': f"Greg {bucket} runs",
+                'record': f"{stats['under']}-{stats['over']}",
+                'win_pct': under_pct,
+                'count': stats['count']
+            })
+
+    # Collect run line edges
+    for bucket, stats in rl_results['away_runline'].items():
+        win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        if stats['count'] >= 5:
+            all_edges.append({
+                'type': 'Away RL',
+                'condition': f"Greg {bucket} better",
+                'record': f"{stats['wins']}-{stats['losses']}",
+                'win_pct': win_pct,
+                'count': stats['count']
+            })
+
+    for bucket, stats in rl_results['home_runline'].items():
+        win_pct = (stats['wins'] / stats['count'] * 100) if stats['count'] > 0 else 0
+        if stats['count'] >= 5:
+            all_edges.append({
+                'type': 'Home RL',
+                'condition': f"Greg {bucket} better",
+                'record': f"{stats['wins']}-{stats['losses']}",
+                'win_pct': win_pct,
+                'count': stats['count']
+            })
+
+    # Sort by win percentage (descending)
+    all_edges.sort(key=lambda x: x['win_pct'], reverse=True)
+
+    # Print top edges
+    print(f"\n{'Bet Type':<12} {'Condition':<25} {'Record':<12} {'Win %':<10} {'Games'}")
+    print(f"{'-'*80}")
+
+    for edge in all_edges:
+        print(f"{edge['type']:<12} {edge['condition']:<25} {edge['record']:<12} {edge['win_pct']:<10.1f}% {edge['count']}")
+
+    # Highlight best edges
+    print(f"\n{'='*80}")
+    print("TOP 5 BETTING EDGES (minimum 5 games)")
+    print(f"{'='*80}")
+
+    for i, edge in enumerate(all_edges[:5]):
+        print(f"\n{i+1}. {edge['type']} - {edge['condition']}")
+        print(f"   Record: {edge['record']} ({edge['win_pct']:.1f}% win rate)")
+        print(f"   Sample size: {edge['count']} games")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Compare Greg\'s MLB prices to Vegas closing lines'
@@ -480,6 +690,12 @@ def main():
 
     # Analyze totals edges
     totals_results = analyze_totals_edge(matches)
+
+    # Analyze run line edges
+    rl_results = analyze_runline_edge(matches)
+
+    # Print comprehensive summary
+    print_summary_report(ml_results, totals_results, rl_results)
 
     print(f"\n{'='*80}")
     print("ANALYSIS COMPLETE")

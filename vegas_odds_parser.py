@@ -111,23 +111,35 @@ class VegasOddsParser:
 
     def parse_sheet(self, sheet_name: str) -> List[Dict]:
         """
-        Parse a single sheet.
+        Parse a single sheet containing Vegas closing lines.
+
+        Expected columns:
+        - Date: Game date (YYYY-MM-DD)
+        - Start Time (EDT): Game start time
+        - Away: Away team name
+        - Home: Home team name
+        - Away Score: Final away score
+        - Home Score: Final home score
+        - Status: Game status (Final, etc.)
+        - Away Starter: Away pitcher
+        - Home Starter: Home pitcher
+        - O/U: Total (over/under line)
+        - Over: Odds for over
+        - Under: Odds for under
+        - Away ML: Away moneyline odds
+        - Home ML: Home moneyline odds
 
         Args:
             sheet_name: Sheet name to parse
 
         Returns:
-            List of games with Vegas odds
+            List of games with Vegas closing lines
         """
         try:
-            game_date = self.parse_sheet_date(sheet_name)
-
             # Read with header row
             df = pd.read_excel(self.excel_file, sheet_name=sheet_name)
 
             print(f"\nParsing sheet: {sheet_name}")
-            if game_date:
-                print(f"Date: {game_date.strftime('%Y-%m-%d')}")
             print(f"Columns: {df.columns.tolist()}")
             print(f"Rows: {len(df)}")
 
@@ -135,17 +147,108 @@ class VegasOddsParser:
             print("\nFirst 5 rows:")
             print(df.head().to_string())
 
-            print("\nLast 2 rows:")
-            print(df.tail(2).to_string())
-
             games = []
 
-            # Parse based on actual structure
-            # Common Vegas odds formats include:
-            # - Date, Away Team, Home Team, Away ML, Home ML, Away RL, Home RL, Total, Over Price, Under Price
-            # - Or team rows with rotation numbers
+            # Parse each row as a game
+            for idx, row in df.iterrows():
+                try:
+                    # Skip rows without valid data
+                    if pd.isna(row.get('Date')) or pd.isna(row.get('Away')) or pd.isna(row.get('Home')):
+                        continue
 
-            # Will implement full parsing once we see the actual structure
+                    # Extract game info
+                    game_date_str = str(row.get('Date', '')).strip()
+
+                    # Parse date
+                    if game_date_str:
+                        try:
+                            game_date = pd.to_datetime(game_date_str).date()
+                        except:
+                            continue
+                    else:
+                        continue
+
+                    away_team = str(row.get('Away', '')).strip()
+                    home_team = str(row.get('Home', '')).strip()
+
+                    if not away_team or not home_team:
+                        continue
+
+                    # Extract odds
+                    away_ml = row.get('Away ML')
+                    home_ml = row.get('Home ML')
+                    total = row.get('O/U')
+                    over_odds = row.get('Over')
+                    under_odds = row.get('Under')
+
+                    # Parse integers for odds (may have +/- signs)
+                    def parse_odds(val):
+                        if pd.isna(val):
+                            return None
+                        try:
+                            return int(str(val).replace('+', '').strip())
+                        except:
+                            return None
+
+                    away_ml = parse_odds(away_ml)
+                    home_ml = parse_odds(home_ml)
+                    over_odds = parse_odds(over_odds)
+                    under_odds = parse_odds(under_odds)
+
+                    # Parse total (float)
+                    try:
+                        total = float(total) if not pd.isna(total) else None
+                    except:
+                        total = None
+
+                    # Extract scores and status
+                    away_score = row.get('Away Score')
+                    home_score = row.get('Home Score')
+                    status = str(row.get('Status', '')).strip()
+
+                    # Parse scores
+                    try:
+                        away_score = int(away_score) if not pd.isna(away_score) else None
+                        home_score = int(home_score) if not pd.isna(home_score) else None
+                    except:
+                        away_score = None
+                        home_score = None
+
+                    game = {
+                        'date': game_date,
+                        'away_team': away_team,
+                        'home_team': home_team,
+                        'away_moneyline': away_ml,
+                        'home_moneyline': home_ml,
+                        'total': total,
+                        'over_odds': over_odds,
+                        'under_odds': under_odds,
+                        'away_score': away_score,
+                        'home_score': home_score,
+                        'status': status,
+                        'away_starter': str(row.get('Away Starter', '')).strip(),
+                        'home_starter': str(row.get('Home Starter', '')).strip(),
+                    }
+
+                    games.append(game)
+
+                except Exception as e:
+                    # Skip problematic rows
+                    continue
+
+            print(f"\nParsed {len(games)} games from sheet {sheet_name}")
+
+            # Show sample parsed games
+            if games:
+                print("\nSample parsed games:")
+                for i, game in enumerate(games[:3]):
+                    print(f"\nGame {i+1}:")
+                    print(f"  Date: {game['date']}")
+                    print(f"  Matchup: {game['away_team']} @ {game['home_team']}")
+                    print(f"  Moneylines: {game['away_moneyline']} / {game['home_moneyline']}")
+                    print(f"  Total: {game['total']} (Over: {game['over_odds']}, Under: {game['under_odds']})")
+                    if game['status'] == 'Final':
+                        print(f"  Final: {game['away_score']}-{game['home_score']}")
 
             return games
 
@@ -155,12 +258,13 @@ class VegasOddsParser:
             traceback.print_exc()
             return []
 
-    def parse_all_sheets(self, max_sheets: int = None) -> List[Dict]:
+    def parse_all_sheets(self, max_sheets: int = None, sheet_filter: str = None) -> List[Dict]:
         """
         Parse all sheets or up to max_sheets.
 
         Args:
             max_sheets: Optional limit on number of sheets to parse (for testing)
+            sheet_filter: Optional sheet name to parse (e.g., "Betting Odds")
 
         Returns:
             List of all games
@@ -178,18 +282,24 @@ class VegasOddsParser:
         print(f"VEGAS ODDS FILE STRUCTURE")
         print(f"{'='*80}")
         print(f"\nTotal sheets: {len(sheet_names)}")
-        print(f"Sheet names: {', '.join(sheet_names[:10])}")
-        if len(sheet_names) > 10:
-            print(f"... and {len(sheet_names) - 10} more")
+        print(f"Sheet names: {', '.join(sheet_names)}")
 
-        # Limit sheets if specified (for initial inspection)
-        sheets_to_parse = sheet_names[:max_sheets] if max_sheets else sheet_names
-
-        print(f"\nParsing {len(sheets_to_parse)} sheet(s)...")
+        # Filter to specific sheet if specified
+        if sheet_filter:
+            if sheet_filter in sheet_names:
+                sheets_to_parse = [sheet_filter]
+                print(f"\nParsing sheet: {sheet_filter}")
+            else:
+                print(f"\nWarning: Sheet '{sheet_filter}' not found. Available sheets: {', '.join(sheet_names)}")
+                return []
+        else:
+            # Limit sheets if specified (for initial inspection)
+            sheets_to_parse = sheet_names[:max_sheets] if max_sheets else sheet_names
+            print(f"\nParsing {len(sheets_to_parse)} sheet(s)...")
 
         for i, sheet_name in enumerate(sheets_to_parse, 1):
             print(f"\n{'='*80}")
-            print(f"Sheet {i}/{len(sheets_to_parse)}")
+            print(f"Sheet {i}/{len(sheets_to_parse)}: {sheet_name}")
             print(f"{'='*80}")
             games = self.parse_sheet(sheet_name)
             all_games.extend(games)
@@ -207,7 +317,8 @@ if __name__ == '__main__':
 
     # Allow local file path as command line argument
     file_path = VEGAS_ODDS_URL
-    max_sheets = 3  # Default: inspect first 3 sheets
+    sheet_filter = "Betting Odds"  # Default: parse the main betting odds sheet
+    max_sheets = None
 
     if len(sys.argv) > 1:
         file_path = sys.argv[1]
@@ -215,8 +326,14 @@ if __name__ == '__main__':
 
         # Optional: parse all sheets if --all flag is provided
         if '--all' in sys.argv:
+            sheet_filter = None
             max_sheets = None
             print("Parsing all sheets")
+        elif '--inspect' in sys.argv:
+            # Just inspect first sheet
+            sheet_filter = None
+            max_sheets = 1
+            print("Inspecting first sheet only")
     else:
         print(f"Attempting to download from: {file_path}")
 
@@ -224,7 +341,7 @@ if __name__ == '__main__':
 
     if parser.load_file():
         print("✓ File loaded successfully\n")
-        parser.parse_all_sheets(max_sheets=max_sheets)
+        parser.parse_all_sheets(max_sheets=max_sheets, sheet_filter=sheet_filter)
     else:
         print("\n❌ Failed to load file")
         print("\nNote: If download fails due to network restrictions, you can:")

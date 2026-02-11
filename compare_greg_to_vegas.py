@@ -47,9 +47,16 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
 
     # Build Vegas lookup by date and teams
     vegas_lookup = {}
+    vegas_dates = set()
+    vegas_teams = set()
+
     for vg in vegas_games:
         if not vg.get('date') or not vg.get('away_team') or not vg.get('home_team'):
             continue
+
+        vegas_dates.add(vg['date'])
+        vegas_teams.add(normalize_mlb_team_name(vg['away_team']))
+        vegas_teams.add(normalize_mlb_team_name(vg['home_team']))
 
         key = (
             vg['date'],
@@ -59,11 +66,25 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
         vegas_lookup[key] = vg
 
     print(f"\nBuilt Vegas lookup with {len(vegas_lookup)} games")
+    print(f"Vegas date range: {min(vegas_dates)} to {max(vegas_dates)}")
+    print(f"Sample Vegas teams: {list(sorted(vegas_teams))[:10]}")
+
+    # Debug: Show sample Vegas keys
+    print(f"\nSample Vegas lookup keys:")
+    for i, key in enumerate(list(vegas_lookup.keys())[:5]):
+        print(f"  {key}")
 
     # Match Greg's games
+    greg_dates = set()
+    greg_teams = set()
+
     for gg in greg_games:
         if not gg.get('date') or not gg.get('away_team') or not gg.get('home_team'):
             continue
+
+        greg_dates.add(gg['date'])
+        greg_teams.add(normalize_mlb_team_name(gg['away_team']))
+        greg_teams.add(normalize_mlb_team_name(gg['home_team']))
 
         key = (
             gg['date'],
@@ -102,7 +123,28 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
 
             matches.append(match)
 
-    print(f"Matched {len(matches)} games between Greg and Vegas")
+    if greg_dates:
+        print(f"\nGreg's date range: {min(greg_dates)} to {max(greg_dates)}")
+        print(f"Sample Greg's teams: {list(sorted(greg_teams))[:10]}")
+
+        # Show sample Greg's keys
+        print(f"\nSample Greg's lookup keys:")
+        sample_count = 0
+        for gg in greg_games[:5]:
+            if gg.get('date') and gg.get('away_team') and gg.get('home_team'):
+                key = (
+                    gg['date'],
+                    normalize_mlb_team_name(gg['away_team']),
+                    normalize_mlb_team_name(gg['home_team'])
+                )
+                print(f"  {key}")
+                sample_count += 1
+                if sample_count >= 5:
+                    break
+    else:
+        print("\nWarning: No valid dates found in Greg's games!")
+
+    print(f"\nMatched {len(matches)} games between Greg and Vegas")
 
     return matches
 
@@ -342,6 +384,18 @@ def main():
     greg_parser = GregsMLBParser(args.gregs_file)
     greg_games = greg_parser.parse_sheet(args.sheet_name)
     print(f"Parsed {len(greg_games)} games from Greg's sheet")
+
+    # Show sample Greg games
+    if greg_games:
+        print("\nSample Greg's games:")
+        for i, game in enumerate(greg_games[:3]):
+            print(f"\nGame {i+1}:")
+            print(f"  Date: {game.get('date')}")
+            print(f"  Matchup: {game.get('away_team')} @ {game.get('home_team')}")
+            print(f"  Moneylines: {game.get('away_moneyline')} / {game.get('home_moneyline')}")
+            print(f"  Total: {game.get('total')}")
+    else:
+        print("\nWarning: Greg's parser returned no games!")
 
     # Parse Vegas odds
     print(f"\nParsing Vegas odds: {args.vegas_file}")

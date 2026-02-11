@@ -30,7 +30,7 @@ class GregsMLBParser:
             sheet_name: Sheet name (e.g., "7/28/25" or "72825")
 
         Returns:
-            datetime object or None if invalid
+            date object (not datetime) or None if invalid
         """
         try:
             sheet_name = str(sheet_name).strip()
@@ -48,7 +48,7 @@ class GregsMLBParser:
                     year_str = parts[2]
                     # Handle 2-digit or 4-digit year
                     year = int(year_str) if len(year_str) == 4 else 2000 + int(year_str)
-                    return datetime(year, month, day)
+                    return datetime(year, month, day).date()
 
             # Fall back to MDDYY format without slashes
             # MDYY format (e.g., "4125" = 4/1/25)
@@ -69,7 +69,7 @@ class GregsMLBParser:
             else:
                 return None
 
-            return datetime(year, month, day)
+            return datetime(year, month, day).date()
 
         except (ValueError, IndexError):
             return None

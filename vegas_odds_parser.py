@@ -56,6 +56,59 @@ class VegasOddsParser:
             print(f"Error loading Excel file: {e}")
             return False
 
+    def parse_sheet_date(self, sheet_name: str) -> Optional[datetime]:
+        """
+        Parse date from sheet name.
+
+        Args:
+            sheet_name: Sheet name (e.g., "7/28/25", "72825", or "2025-07-28")
+
+        Returns:
+            datetime object or None if invalid
+        """
+        try:
+            sheet_name = str(sheet_name).strip()
+
+            # Try M/D/YY or MM/DD/YY format first
+            if '/' in sheet_name:
+                parts = sheet_name.split('/')
+                if len(parts) == 3:
+                    month = int(parts[0])
+                    day = int(parts[1])
+                    year_str = parts[2]
+                    year = int(year_str) if len(year_str) == 4 else 2000 + int(year_str)
+                    return datetime(year, month, day)
+
+            # Try ISO format (YYYY-MM-DD)
+            if '-' in sheet_name:
+                parts = sheet_name.split('-')
+                if len(parts) == 3:
+                    year = int(parts[0])
+                    month = int(parts[1])
+                    day = int(parts[2])
+                    return datetime(year, month, day)
+
+            # Try MDDYY or MMDDYY format
+            if len(sheet_name) == 4:
+                month = int(sheet_name[0])
+                day = int(sheet_name[1])
+                year = 2000 + int(sheet_name[2:4])
+            elif len(sheet_name) == 5:
+                month = int(sheet_name[0])
+                day = int(sheet_name[1:3])
+                year = 2000 + int(sheet_name[3:5])
+            elif len(sheet_name) == 6:
+                month = int(sheet_name[0:2])
+                day = int(sheet_name[2:4])
+                year = 2000 + int(sheet_name[4:6])
+            else:
+                return None
+
+            return datetime(year, month, day)
+
+        except (ValueError, IndexError):
+            return None
+
     def parse_sheet(self, sheet_name: str) -> List[Dict]:
         """
         Parse a single sheet.
@@ -67,10 +120,14 @@ class VegasOddsParser:
             List of games with Vegas odds
         """
         try:
+            game_date = self.parse_sheet_date(sheet_name)
+
             # Read with header row
             df = pd.read_excel(self.excel_file, sheet_name=sheet_name)
 
             print(f"\nParsing sheet: {sheet_name}")
+            if game_date:
+                print(f"Date: {game_date.strftime('%Y-%m-%d')}")
             print(f"Columns: {df.columns.tolist()}")
             print(f"Rows: {len(df)}")
 
@@ -78,19 +135,36 @@ class VegasOddsParser:
             print("\nFirst 5 rows:")
             print(df.head().to_string())
 
+            print("\nLast 2 rows:")
+            print(df.tail(2).to_string())
+
             games = []
 
             # Parse based on actual structure
-            # (Will need to adjust once we see the data)
+            # Common Vegas odds formats include:
+            # - Date, Away Team, Home Team, Away ML, Home ML, Away RL, Home RL, Total, Over Price, Under Price
+            # - Or team rows with rotation numbers
+
+            # Will implement full parsing once we see the actual structure
 
             return games
 
         except Exception as e:
             print(f"Error parsing sheet {sheet_name}: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
-    def parse_all_sheets(self) -> List[Dict]:
-        """Parse all sheets."""
+    def parse_all_sheets(self, max_sheets: int = None) -> List[Dict]:
+        """
+        Parse all sheets or up to max_sheets.
+
+        Args:
+            max_sheets: Optional limit on number of sheets to parse (for testing)
+
+        Returns:
+            List of all games
+        """
         if not self.excel_file:
             success = self.load_file()
             if not success or not self.excel_file:
@@ -98,14 +172,31 @@ class VegasOddsParser:
                 return []
 
         all_games = []
+        sheet_names = self.excel_file.sheet_names
 
-        print(f"\nSheet names: {self.excel_file.sheet_names}")
+        print(f"\n{'='*80}")
+        print(f"VEGAS ODDS FILE STRUCTURE")
+        print(f"{'='*80}")
+        print(f"\nTotal sheets: {len(sheet_names)}")
+        print(f"Sheet names: {', '.join(sheet_names[:10])}")
+        if len(sheet_names) > 10:
+            print(f"... and {len(sheet_names) - 10} more")
 
-        # Parse first sheet to understand structure
-        if self.excel_file.sheet_names:
-            first_sheet = self.excel_file.sheet_names[0]
-            games = self.parse_sheet(first_sheet)
+        # Limit sheets if specified (for initial inspection)
+        sheets_to_parse = sheet_names[:max_sheets] if max_sheets else sheet_names
+
+        print(f"\nParsing {len(sheets_to_parse)} sheet(s)...")
+
+        for i, sheet_name in enumerate(sheets_to_parse, 1):
+            print(f"\n{'='*80}")
+            print(f"Sheet {i}/{len(sheets_to_parse)}")
+            print(f"{'='*80}")
+            games = self.parse_sheet(sheet_name)
             all_games.extend(games)
+
+        print(f"\n{'='*80}")
+        print(f"Total games parsed: {len(all_games)}")
+        print(f"{'='*80}")
 
         self.all_games = all_games
         return all_games
@@ -115,18 +206,25 @@ if __name__ == '__main__':
     import sys
 
     # Allow local file path as command line argument
+    file_path = VEGAS_ODDS_URL
+    max_sheets = 3  # Default: inspect first 3 sheets
+
     if len(sys.argv) > 1:
         file_path = sys.argv[1]
         print(f"Using local file: {file_path}")
+
+        # Optional: parse all sheets if --all flag is provided
+        if '--all' in sys.argv:
+            max_sheets = None
+            print("Parsing all sheets")
     else:
-        file_path = VEGAS_ODDS_URL
         print(f"Attempting to download from: {file_path}")
 
     parser = VegasOddsParser(file_path)
 
     if parser.load_file():
-        print("✓ File loaded successfully")
-        parser.parse_all_sheets()
+        print("✓ File loaded successfully\n")
+        parser.parse_all_sheets(max_sheets=max_sheets)
     else:
         print("\n❌ Failed to load file")
         print("\nNote: If download fails due to network restrictions, you can:")

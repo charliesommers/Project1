@@ -45,9 +45,10 @@ class VegasOddsParser:
                 with open(local_path, 'wb') as f:
                     f.write(response.content)
 
-                self.excel_file = pd.ExcelFile(local_path)
+                # Specify engine explicitly for Excel files
+                self.excel_file = pd.ExcelFile(local_path, engine='openpyxl')
             else:
-                self.excel_file = pd.ExcelFile(self.file_path)
+                self.excel_file = pd.ExcelFile(self.file_path, engine='openpyxl')
 
             return True
         except Exception as e:

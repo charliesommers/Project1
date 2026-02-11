@@ -30,20 +30,34 @@ class VegasOddsParser:
         """Load the Excel file from URL or path."""
         try:
             if self.file_path.startswith('http'):
-                # Add headers to avoid 406 errors
+                import os
+                os.makedirs('data', exist_ok=True)
+                local_path = 'data/vegas_odds.xlsx'
+
+                # For Google Drive, use session with confirm parameter
+                session = requests.Session()
+
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
-                response = requests.get(self.file_path, headers=headers, timeout=30)
+
+                # Try direct download first
+                response = session.get(self.file_path, headers=headers, stream=True, timeout=30)
+
+                # Check if we got an HTML confirmation page
+                content_type = response.headers.get('Content-Type', '')
+                if 'text/html' in content_type:
+                    # Try with confirm parameter for Google Drive
+                    url_with_confirm = f"https://drive.google.com/uc?export=download&id={VEGAS_ODDS_GDRIVE_ID}&confirm=t"
+                    response = session.get(url_with_confirm, headers=headers, stream=True, timeout=30)
+
                 response.raise_for_status()
 
-                # Save locally
-                local_path = 'data/vegas_odds.xlsx'
-                import os
-                os.makedirs('data', exist_ok=True)
-
+                # Download in chunks
                 with open(local_path, 'wb') as f:
-                    f.write(response.content)
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
 
                 # Specify engine explicitly for Excel files
                 self.excel_file = pd.ExcelFile(local_path, engine='openpyxl')

@@ -1,0 +1,39 @@
+name: Test NFL Data Parser
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'NFL Season (e.g., 2024)'
+        required: true
+        default: '2024'
+      week:
+        description: 'Optional: Week number (1-18). Leave empty for full season.'
+        required: false
+        default: ''
+
+jobs:
+  test-nfl:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Test NFL data parser
+      run: |
+        if [ -n "${{ github.event.inputs.week }}" ]; then
+          python nfl_data_parser.py ${{ github.event.inputs.season }} ${{ github.event.inputs.week }}
+        else
+          python nfl_data_parser.py ${{ github.event.inputs.season }}
+        fi

@@ -1,0 +1,47 @@
+name: Test College Football Data Parser
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'CFB Season year (e.g., 2024)'
+        required: true
+        default: '2024'
+      week:
+        description: 'Optional: Week number. Leave empty for full season.'
+        required: false
+        default: ''
+      season_type:
+        description: 'Season type'
+        required: true
+        default: 'regular'
+        type: choice
+        options:
+          - regular
+          - postseason
+
+jobs:
+  test-cfb:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Test CFB data parser
+      run: |
+        if [ -n "${{ github.event.inputs.week }}" ]; then
+          python cfb_data_parser.py ${{ github.event.inputs.year }} ${{ github.event.inputs.week }} ${{ github.event.inputs.season_type }}
+        else
+          python cfb_data_parser.py ${{ github.event.inputs.year }} '' ${{ github.event.inputs.season_type }}
+        fi

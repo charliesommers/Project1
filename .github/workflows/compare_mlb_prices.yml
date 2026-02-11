@@ -33,7 +33,23 @@ jobs:
     - name: Download Greg's sheet
       run: |
         mkdir -p data
-        curl -L "${{ github.event.inputs.gregs_sheet_url }}" -o data/gregs_mlb.xlsx
+        echo "Downloading Greg's MLB data..."
+        curl -L \
+          -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+          "${{ github.event.inputs.gregs_sheet_url }}" \
+          -o data/gregs_mlb.xlsx
+
+        echo "Download complete. Checking file..."
+        file data/gregs_mlb.xlsx
+        ls -lh data/gregs_mlb.xlsx
+
+        # Check if it's actually an Excel file
+        if ! file data/gregs_mlb.xlsx | grep -q "Microsoft Excel\|Zip archive"; then
+          echo "ERROR: Downloaded file is not an Excel file!"
+          echo "Content of downloaded file (first 500 chars):"
+          head -c 500 data/gregs_mlb.xlsx
+          exit 1
+        fi
 
     - name: Compare prices
       run: |

@@ -77,6 +77,7 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
     # Match Greg's games
     greg_dates = set()
     greg_teams = set()
+    unmatched_games = []
 
     for gg in greg_games:
         if not gg.get('date') or not gg.get('away_team') or not gg.get('home_team'):
@@ -122,6 +123,16 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
             }
 
             matches.append(match)
+        else:
+            # Track unmatched games
+            unmatched_games.append({
+                'date': gg['date'],
+                'away_team': gg['away_team'],
+                'home_team': gg['home_team'],
+                'normalized_away': normalize_mlb_team_name(gg['away_team']),
+                'normalized_home': normalize_mlb_team_name(gg['home_team']),
+                'key': key
+            })
 
     if greg_dates:
         print(f"\nGreg's date range: {min(greg_dates)} to {max(greg_dates)}")
@@ -145,6 +156,21 @@ def match_games(greg_games: List[Dict], vegas_games: List[Dict]) -> List[Dict]:
         print("\nWarning: No valid dates found in Greg's games!")
 
     print(f"\nMatched {len(matches)} games between Greg and Vegas")
+    print(f"Unmatched games from Greg: {len(unmatched_games)}")
+
+    # Show first 20 unmatched games to help debug
+    if unmatched_games:
+        print(f"\nFirst 20 unmatched games from Greg:")
+        for i, ug in enumerate(unmatched_games[:20]):
+            print(f"  {ug['date']} | {ug['normalized_away']} @ {ug['normalized_home']}")
+            # Check if date exists in Vegas
+            if ug['date'] not in vegas_dates:
+                print(f"    ^ Date not in Vegas dataset")
+            # Check if teams exist in Vegas
+            if ug['normalized_away'] not in vegas_teams:
+                print(f"    ^ Away team '{ug['normalized_away']}' not in Vegas dataset")
+            if ug['normalized_home'] not in vegas_teams:
+                print(f"    ^ Home team '{ug['normalized_home']}' not in Vegas dataset")
 
     return matches
 

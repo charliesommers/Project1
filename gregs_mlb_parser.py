@@ -181,6 +181,8 @@ class GregsMLBParser:
             print(f"Warning: Could not read sheet {sheet_name}: {e}")
             return []
 
+        print(f"   Sheet dimensions: {len(df_raw)} rows × {len(df_raw.columns)} columns")
+
         games = []
 
         # MLB format (per sheet header):
@@ -194,6 +196,7 @@ class GregsMLBParser:
         # Pattern repeats every 7 columns
         team_columns = [1, 8, 15, 22, 29]  # Columns B, I, P, W, ...
 
+        games_by_column = {}
         for team_col in team_columns:
             moneyline_col = team_col + 2  # Column D (moneyline price)
             line_col = team_col + 3  # Column E (run line price)
@@ -202,6 +205,7 @@ class GregsMLBParser:
             if team_col >= len(df_raw.columns) or total_col >= len(df_raw.columns):
                 continue
 
+            column_games = 0
             # Process rows in pairs based on shared totals (skip header row 0)
             for i in range(1, len(df_raw) - 1, 2):
                 team1 = df_raw.iloc[i, team_col]
@@ -280,8 +284,22 @@ class GregsMLBParser:
                 game = self.parse_game_pair(row1, row2, game_date)
                 if game:
                     games.append(game)
+                    column_games += 1
+
+            games_by_column[f"col_{team_col}"] = column_games
 
         print(f"   ✓ Found {len(games)} games in this sheet")
+
+        # Debug: show games per column
+        if games_by_column:
+            games_per_col_str = ", ".join([f"{k}: {v}" for k, v in games_by_column.items() if v > 0])
+            if games_per_col_str:
+                print(f"      Games by column: {games_per_col_str}")
+
+        # Debug: show row and column counts
+        if len(games) == 0:
+            print(f"   ⚠️  No games found. Sheet has {len(df_raw)} rows and {len(df_raw.columns)} columns")
+
         return games
 
     def parse_all_sheets(self, specific_date: Optional[str] = None) -> List[Dict]:
@@ -323,6 +341,9 @@ class GregsMLBParser:
                     sheets_parsed += 1
                 else:
                     sheets_skipped += 1
+                    # Debug: track why sheets were skipped
+                    if i < 10 or sheets_skipped < 20:  # Show first 10 sheet attempts or first 20 skips
+                        pass  # Already printed by parse_sheet
 
         print(f"\n{'='*80}")
         print(f"GREG'S PARSER SUMMARY")

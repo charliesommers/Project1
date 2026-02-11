@@ -7,6 +7,10 @@ import requests
 from datetime import datetime
 from typing import Dict, List, Optional
 
+# Google Drive file ID for Vegas closing lines
+VEGAS_ODDS_GDRIVE_ID = "1zW41Par7mje7XqOp1Hq5XRL8xl4mN-44"
+VEGAS_ODDS_URL = f"https://drive.google.com/uc?export=download&id={VEGAS_ODDS_GDRIVE_ID}"
+
 
 class VegasOddsParser:
     """Parser for Vegas MLB closing lines spreadsheet."""
@@ -103,7 +107,6 @@ class VegasOddsParser:
 
 
 if __name__ == '__main__':
-    # Test parsing
-    url = "https://shanemcd.org/wp-content/uploads/2025/07/mlb-odds.xlsx"
-    parser = VegasOddsParser(url)
+    # Test parsing from Google Drive
+    parser = VegasOddsParser(VEGAS_ODDS_URL)
     parser.parse_all_sheets()

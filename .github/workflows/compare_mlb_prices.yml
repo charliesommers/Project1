@@ -6,7 +6,7 @@ on:
       gregs_sheet_url:
         description: 'Google Sheets URL for Greg''s MLB picks'
         required: true
-        default: 'https://docs.google.com/spreadsheets/d/1dfBdsjWDp0eK20VXDOY6MC5ArWvcVCMF/export?format=xlsx'
+        default: 'https://docs.google.com/spreadsheets/d/13xBhcWVY7_I3U27LfIMuvmZaom95DRaH/export?format=xlsx'
       sheet_name:
         description: 'Optional: specific sheet name/date (e.g., "11/1/25"). Leave empty to parse all sheets.'
         required: false

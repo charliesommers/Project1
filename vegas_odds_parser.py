@@ -105,7 +105,10 @@ class VegasOddsParser:
     def parse_all_sheets(self) -> List[Dict]:
         """Parse all sheets."""
         if not self.excel_file:
-            self.load_file()
+            success = self.load_file()
+            if not success or not self.excel_file:
+                print("Failed to load Excel file")
+                return []
 
         all_games = []
 
@@ -122,6 +125,25 @@ class VegasOddsParser:
 
 
 if __name__ == '__main__':
-    # Test parsing from Google Drive
-    parser = VegasOddsParser(VEGAS_ODDS_URL)
-    parser.parse_all_sheets()
+    import sys
+
+    # Allow local file path as command line argument
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+        print(f"Using local file: {file_path}")
+    else:
+        file_path = VEGAS_ODDS_URL
+        print(f"Attempting to download from: {file_path}")
+
+    parser = VegasOddsParser(file_path)
+
+    if parser.load_file():
+        print("✓ File loaded successfully")
+        parser.parse_all_sheets()
+    else:
+        print("\n❌ Failed to load file")
+        print("\nNote: If download fails due to network restrictions, you can:")
+        print("1. Download the file manually from:")
+        print("   https://drive.google.com/file/d/1zW41Par7mje7XqOp1Hq5XRL8xl4mN-44/view")
+        print("2. Save it as: data/vegas_odds.xlsx")
+        print("3. Run: python vegas_odds_parser.py data/vegas_odds.xlsx")

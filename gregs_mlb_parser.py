@@ -77,7 +77,7 @@ class GregsMLBParser:
     def load_file(self):
         """Load the Excel file."""
         try:
-            self.excel_file = pd.ExcelFile(self.file_path)
+            self.excel_file = pd.ExcelFile(self.file_path, engine='openpyxl')
             return True
         except Exception as e:
             print(f"Error loading Excel file: {e}")
@@ -287,7 +287,10 @@ class GregsMLBParser:
             List of all games from all sheets
         """
         if not self.excel_file:
-            self.load_file()
+            success = self.load_file()
+            if not success or not self.excel_file:
+                print("Failed to load Excel file")
+                return []
 
         all_games = []
 

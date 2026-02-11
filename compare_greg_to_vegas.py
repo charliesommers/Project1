@@ -369,8 +369,8 @@ def main():
     )
     parser.add_argument(
         '--sheet-name',
-        default='2025',
-        help='Sheet name in Greg\'s file (default: 2025)'
+        default=None,
+        help='Optional: specific sheet name/date in Greg\'s file (e.g., "11/1/25"). If not specified, parses all sheets.'
     )
 
     args = parser.parse_args()
@@ -379,11 +379,18 @@ def main():
     print("GREG'S MLB PRICES VS VEGAS CLOSING LINES")
     print(f"{'='*80}")
 
-    # Parse Greg's sheet
+    # Parse Greg's sheet(s)
     print(f"\nParsing Greg's file: {args.gregs_file}")
     greg_parser = GregsMLBParser(args.gregs_file)
-    greg_games = greg_parser.parse_sheet(args.sheet_name)
-    print(f"Parsed {len(greg_games)} games from Greg's sheet")
+
+    if args.sheet_name:
+        print(f"Parsing specific sheet: {args.sheet_name}")
+        greg_games = greg_parser.parse_all_sheets(specific_date=args.sheet_name)
+    else:
+        print("Parsing all sheets...")
+        greg_games = greg_parser.parse_all_sheets()
+
+    print(f"Parsed {len(greg_games)} games from Greg's sheet(s)")
 
     # Show sample Greg games
     if greg_games:

@@ -8,9 +8,9 @@ on:
         required: true
         default: 'https://docs.google.com/spreadsheets/d/1v6IhFaqN3FVBDi7hAHWy9G3bk1g-NPqKr7kBVv81uuk/export?format=xlsx'
       sheet_name:
-        description: 'Sheet name in Greg''s file'
-        required: true
-        default: '2025'
+        description: 'Optional: specific sheet name/date (e.g., "11/1/25"). Leave empty to parse all sheets.'
+        required: false
+        default: ''
 
 jobs:
   compare:
@@ -37,6 +37,11 @@ jobs:
 
     - name: Compare prices
       run: |
-        python compare_greg_to_vegas.py \
-          --gregs-file data/gregs_mlb.xlsx \
-          --sheet-name "${{ github.event.inputs.sheet_name }}"
+        if [ -n "${{ github.event.inputs.sheet_name }}" ]; then
+          python compare_greg_to_vegas.py \
+            --gregs-file data/gregs_mlb.xlsx \
+            --sheet-name "${{ github.event.inputs.sheet_name }}"
+        else
+          python compare_greg_to_vegas.py \
+            --gregs-file data/gregs_mlb.xlsx
+        fi

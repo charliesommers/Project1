@@ -162,8 +162,10 @@ class GregsMLBParser:
         """
         game_date = self.parse_sheet_date(sheet_name)
         if not game_date:
-            print(f"Warning: Could not parse date from sheet name: {sheet_name}")
+            print(f"⚠️  Skipping sheet '{sheet_name}' - could not parse date")
             return []
+
+        print(f"📅 Parsing sheet: {sheet_name} -> Date: {game_date}")
 
         try:
             df_raw = pd.read_excel(self.excel_file, sheet_name=sheet_name, header=None)
@@ -269,11 +271,9 @@ class GregsMLBParser:
 
                 game = self.parse_game_pair(row1, row2, game_date)
                 if game:
-                    # DEBUG: Print first few games to verify team names
-                    if len(games) < 3:
-                        print(f"DEBUG - Parsed game: {team1_str} @ {team2_str} (Total: {total1 if not pd.isna(total1) else 'N/A'})")
                     games.append(game)
 
+        print(f"   ✓ Found {len(games)} games in this sheet")
         return games
 
     def parse_all_sheets(self, specific_date: Optional[str] = None) -> List[Dict]:
@@ -293,18 +293,36 @@ class GregsMLBParser:
                 return []
 
         all_games = []
+        sheets_parsed = 0
+        sheets_skipped = 0
 
         if specific_date:
             if specific_date in self.excel_file.sheet_names:
                 games = self.parse_sheet(specific_date)
                 all_games.extend(games)
+                sheets_parsed += 1
             else:
                 print(f"Error: Sheet '{specific_date}' not found")
-                print(f"Available sheets: {', '.join(self.excel_file.sheet_names)}")
+                print(f"Available sheets: {', '.join(self.excel_file.sheet_names[:20])}")
+                if len(self.excel_file.sheet_names) > 20:
+                    print(f"... and {len(self.excel_file.sheet_names) - 20} more")
         else:
-            for sheet_name in self.excel_file.sheet_names:
+            print(f"\nProcessing {len(self.excel_file.sheet_names)} sheets...")
+            for i, sheet_name in enumerate(self.excel_file.sheet_names):
                 games = self.parse_sheet(sheet_name)
-                all_games.extend(games)
+                if games:
+                    all_games.extend(games)
+                    sheets_parsed += 1
+                else:
+                    sheets_skipped += 1
+
+        print(f"\n{'='*80}")
+        print(f"GREG'S PARSER SUMMARY")
+        print(f"{'='*80}")
+        print(f"Sheets parsed successfully: {sheets_parsed}")
+        print(f"Sheets skipped (no date or data): {sheets_skipped}")
+        print(f"Total games found: {len(all_games)}")
+        print(f"{'='*80}\n")
 
         self.all_games = all_games
         return all_games

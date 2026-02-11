@@ -380,29 +380,57 @@ def main():
     print(f"{'='*80}")
 
     # Parse Greg's sheet(s)
-    print(f"\nParsing Greg's file: {args.gregs_file}")
+    print(f"\n{'='*80}")
+    print("PARSING GREG'S MLB FILE")
+    print(f"{'='*80}")
+    print(f"File: {args.gregs_file}")
+
     greg_parser = GregsMLBParser(args.gregs_file)
 
+    # Load and check sheets
+    if not greg_parser.load_file():
+        print("\nERROR: Failed to load Greg's Excel file!")
+        print("This could mean:")
+        print("  1. File doesn't exist")
+        print("  2. File is corrupted")
+        print("  3. Wrong file format")
+        return
+
+    print(f"\n✓ File loaded successfully")
+    print(f"Available sheets: {greg_parser.excel_file.sheet_names[:15]}")
+    if len(greg_parser.excel_file.sheet_names) > 15:
+        print(f"... and {len(greg_parser.excel_file.sheet_names) - 15} more")
+
     if args.sheet_name:
-        print(f"Parsing specific sheet: {args.sheet_name}")
+        print(f"\nParsing specific sheet: {args.sheet_name}")
         greg_games = greg_parser.parse_all_sheets(specific_date=args.sheet_name)
     else:
-        print("Parsing all sheets...")
+        print(f"\nParsing ALL sheets ({len(greg_parser.excel_file.sheet_names)} total)...")
         greg_games = greg_parser.parse_all_sheets()
 
-    print(f"Parsed {len(greg_games)} games from Greg's sheet(s)")
+    print(f"\n{'='*80}")
+    print(f"GREG'S PARSING RESULTS: {len(greg_games)} games")
+    print(f"{'='*80}")
 
-    # Show sample Greg games
+    # Show raw sample data to debug
     if greg_games:
-        print("\nSample Greg's games:")
+        print("\nFirst 3 games (raw dict):")
         for i, game in enumerate(greg_games[:3]):
-            print(f"\nGame {i+1}:")
-            print(f"  Date: {game.get('date')}")
-            print(f"  Matchup: {game.get('away_team')} @ {game.get('home_team')}")
-            print(f"  Moneylines: {game.get('away_moneyline')} / {game.get('home_moneyline')}")
-            print(f"  Total: {game.get('total')}")
+            print(f"\nGame {i+1} keys: {list(game.keys())}")
+            print(f"  date: {game.get('date')} (type: {type(game.get('date'))})")
+            print(f"  away_team: {game.get('away_team')}")
+            print(f"  home_team: {game.get('home_team')}")
+            print(f"  matchup: {game.get('matchup')}")
+            print(f"  away_moneyline: {game.get('away_moneyline')}")
+            print(f"  home_moneyline: {game.get('home_moneyline')}")
+            print(f"  total: {game.get('total')}")
     else:
-        print("\nWarning: Greg's parser returned no games!")
+        print("\n❌ ERROR: Greg's parser returned 0 games!")
+        print("Possible issues:")
+        print("  1. No sheets had parseable dates (check sheet name format)")
+        print("  2. Sheet structure doesn't match expected format")
+        print("  3. All sheets were empty or had no valid data")
+        return
 
     # Parse Vegas odds
     print(f"\nParsing Vegas odds: {args.vegas_file}")

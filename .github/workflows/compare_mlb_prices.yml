@@ -1,0 +1,42 @@
+name: Compare MLB Prices - Greg vs Vegas
+
+on:
+  workflow_dispatch:
+    inputs:
+      gregs_sheet_url:
+        description: 'Google Sheets URL for Greg''s MLB picks'
+        required: true
+        default: 'https://docs.google.com/spreadsheets/d/1v6IhFaqN3FVBDi7hAHWy9G3bk1g-NPqKr7kBVv81uuk/export?format=xlsx'
+      sheet_name:
+        description: 'Sheet name in Greg''s file'
+        required: true
+        default: '2025'
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Download Greg's sheet
+      run: |
+        mkdir -p data
+        curl -L "${{ github.event.inputs.gregs_sheet_url }}" -o data/gregs_mlb.xlsx
+
+    - name: Compare prices
+      run: |
+        python compare_greg_to_vegas.py \
+          --gregs-file data/gregs_mlb.xlsx \
+          --sheet-name "${{ github.event.inputs.sheet_name }}"

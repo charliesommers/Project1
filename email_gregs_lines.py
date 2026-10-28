@@ -115,43 +115,9 @@ def get_picks_text():
     return text
 
 
-def send_email(to_email, subject, body, from_email=None, smtp_server=None, smtp_port=None, password=None):
-    """Send email with picks."""
-    # Get config from environment variables or parameters
-    from_email = from_email or os.getenv('EMAIL_FROM')
-    smtp_server = smtp_server or os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port = int(smtp_port or os.getenv('SMTP_PORT', 587))
-    password = password or os.getenv('EMAIL_PASSWORD')
-
-    if not from_email or not password:
-        print("Error: Email credentials not configured")
-        return False
-
-    try:
-        # Create message
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = from_email
-        msg['To'] = to_email
-        msg.set_content(body)
-
-        # Send email
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_server, smtp_port) as smtp:
-                smtp.login(from_email, password)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(smtp_server, smtp_port) as smtp:
-                smtp.starttls()
-                smtp.login(from_email, password)
-                smtp.send_message(msg)
-
-        print(f"✅ Email sent to {to_email}")
-        return True
-
-    except Exception as e:
-        print(f"❌ Failed to send email: {e}")
-        return False
+def send_email(*args, **kwargs):
+    """Email delivery has been disabled by the user."""
+    raise RuntimeError("Pick emails are disabled; use Discord.")
 
 
 def main():

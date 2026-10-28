@@ -5,9 +5,7 @@ Uses Greg's public Google Sheet instead of VSIN scraping
 """
 import os
 import sys
-import smtplib
 import requests
-from email.message import EmailMessage
 from datetime import datetime
 from gregs_cbb_parser import GregsCBBParser
 from odds_fetcher import OddsFetcher
@@ -158,7 +156,7 @@ def get_picks_text():
     # Get odds from ALL bookmakers in a SINGLE API request (saves credits!)
     fetcher = OddsFetcher()
 
-    print("Fetching odds from available US bookmakers...")
+    print("Fetching FanDuel odds only...")
     all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers()
 
     # Get list of unique bookmakers found
@@ -181,7 +179,7 @@ def get_picks_text():
         print(f"  {away} @ {home}")
 
     # Generate picks for games WITH odds
-    generator = DailyPicksGenerator(under_threshold=3.0, over_threshold=5.0)
+    generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
     picks_with_odds = generator.generate_picks(games, all_sportsbook_data)
 
     # Sort by game time first, then alphabetically by away team (Bet365 style)
@@ -196,7 +194,7 @@ def get_picks_text():
     top_picks = []
     for pick in picks_with_odds:
         edge = abs(pick['edge'])
-        if (pick['pick'] == 'UNDER' and edge >= 3.0) or (pick['pick'] == 'OVER' and edge >= 5.0):
+        if (pick['pick'] == 'UNDER' and edge >= 5.0) or (pick['pick'] == 'OVER' and edge >= 3.0):
             top_picks.append(pick)
 
     # Find games WITHOUT odds
@@ -223,15 +221,15 @@ def get_picks_text():
 
     # Format as text
     text = f"\n📅 Games for {games[0]['date'].strftime('%B %d, %Y')}\n"
-    text += f"SPORTSBOOK CBB TOTALS COMPARISONS\n\n"
+    text += "**FanDuel • Daily CBB Report**\n\n"
     text += f"{len(picks_with_odds)} games with odds\n"
     text += f"{len(games_without_odds)} pending\n"
 
     # Display TOP SPREAD EDGES (major conferences only)
     if top_spread_picks:
-        text += "\n" + "="*50 + "\n"
-        text += "🏀 LARGEST SPREAD DISCREPANCIES (All Conferences)\n"
-        text += "="*50 + "\n\n"
+        text += "\n" + "─"*16 + "\n"
+        text += "**🏀 TOP 10 SPREAD GAPS**\n"
+        text += "─"*16 + "\n\n"
 
         for i, pick in enumerate(top_spread_picks, 1):
             # Format game time
@@ -260,15 +258,15 @@ def get_picks_text():
             recommended_team = clean_team_name(pick['recommended_team'])
             recommended_spread = pick['recommended_spread']
 
-            text += f"{i}. BET {recommended_team} {recommended_spread:+.1f}\n"
-            text += f"{matchup_display} ({pick['conference']})\n"
+            text += f"**{i}. {recommended_team} {recommended_spread:+.1f}**\n"
+            text += f"{matchup_display}\n"
             text += f"{game_time_str} CT\n"
-            text += f"Edge: {pick['edge']:.1f} pts | Book: {pick.get('bookmaker', 'unknown')}\n"
-            text += f"Greg: {pick['gregs_spread']:+.1f} | Sportsbook: {pick['sportsbook_spread']:+.1f}\n\n"
+            text += f"**Gap: {pick['edge']:.1f} pts**\n"
+            text += f"Greg: {pick['gregs_spread']:+.1f} | FanDuel: {pick['sportsbook_spread']:+.1f}\n\n"
 
-        text += "="*50 + "\n\n"
+        text += "─"*16 + "\n\n"
 
-    text += "\nALL GAMES — TIPOFF ORDER (Central Time)\n"
+    text += "\n**📋 ALL GAMES · CENTRAL TIME**\n"
     if not all_sportsbook_data:
         text += "No sportsbook odds available; spread rankings unavailable.\n"
     text += "Unknown tipoff times appear last, alphabetically.\n\n"
@@ -323,11 +321,11 @@ def get_picks_text():
 
             # Determine emoji (no text, just emoji)
             emoji = ""
-            if pick['pick'] == 'UNDER' and edge >= 3.0:
+            if pick['pick'] == 'UNDER' and edge >= 5.0:
                 emoji = "🔥 "
-            elif pick['pick'] == 'OVER' and edge >= 5.0:
+            elif pick['pick'] == 'OVER' and edge >= 1.0:
                 emoji = "🔥 "
-            elif pick['pick'] == 'UNDER' and edge >= 1.0:
+            elif pick['pick'] == 'UNDER' and edge >= 3.0:
                 emoji = "⚠️  "
             elif pick['pick'] == 'OVER' and edge >= 3.0:
                 emoji = "⚠️  "
@@ -354,9 +352,9 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} ({pick.get('bookmaker', 'unknown')})\n"
+            text += f"**{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}**\n"
             text += f"{matchup_display} • {game_time_str}\n"
-            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Sportsbook: {pick['sportsbook_total']:.1f}\n"
+            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | FanDuel: {pick['sportsbook_total']:.1f}\n"
 
         else:  # pending game
             game = item['data']
@@ -389,135 +387,84 @@ def get_picks_text():
         if i < len(all_games_list):
             text += "\n"
 
-    text += "\n" + "-"*50 + "\n"
-    text += "🔥 Strong bet (UNDER ≥3 | OVER ≥5)\n"
+    text += "\n" + "─"*16 + "\n"
+    text += "**🔥 Trigger met** · UNDER ≥5 above Greg | OVER ≥3 below Greg\n"
     text += "⚠️  Close (within 2 pts)\n"
-    text += "-"*50 + "\n"
+    text += "─"*16 + "\n"
 
     return text
 
 
-def send_email(to_email, subject, body, from_email=None, smtp_server=None, smtp_port=None, password=None):
-    """
-    Send email with picks.
+def send_email(*args, **kwargs):
+    """Legacy email delivery is disabled."""
+    raise RuntimeError("Pick emails are disabled; delivery is Discord only.")
 
-    Args:
-        to_email: Recipient email address
-        subject: Email subject
-        body: Email body (plain text)
-        from_email: Sender email (defaults to env var EMAIL_FROM)
-        smtp_server: SMTP server (defaults to env var SMTP_SERVER or Gmail)
-        smtp_port: SMTP port (defaults to env var SMTP_PORT or 587)
-        password: Email password/app password (defaults to env var EMAIL_PASSWORD)
-    """
-    # Get config from environment variables or parameters
-    from_email = from_email or os.getenv('EMAIL_FROM')
-    smtp_server = smtp_server or os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port = int(smtp_port or os.getenv('SMTP_PORT', 587))
-    password = password or os.getenv('EMAIL_PASSWORD')
 
-    if not from_email or not password:
-        print("Error: Email credentials not configured")
-        print("Set EMAIL_FROM and EMAIL_PASSWORD in .env file")
-        print("\nExample .env:")
-        print("EMAIL_FROM=your@gmail.com")
-        print("EMAIL_PASSWORD=your_app_password")
-        return False
-
-    try:
-        # Create message
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = from_email
-        msg['To'] = to_email
-        msg.set_content(body)
-
-        # Send email
-        if smtp_port == 465:
-            # SSL
-            with smtplib.SMTP_SSL(smtp_server, smtp_port) as smtp:
-                smtp.login(from_email, password)
-                smtp.send_message(msg)
-        else:
-            # TLS (default for most services)
-            with smtplib.SMTP(smtp_server, smtp_port) as smtp:
-                smtp.starttls()
-                smtp.login(from_email, password)
-                smtp.send_message(msg)
-
-        print(f"✅ Email sent to {to_email}")
-        return True
-
-    except Exception as e:
-        print(f"❌ Failed to send email: {e}")
-        return False
+def discord_chunks(text, limit=3800):
+    """Keep each game together where possible; never truncate the report."""
+    chunks, chunk = [], ""
+    for paragraph in text.strip().split("\n\n"):
+        for offset in range(0, max(1, len(paragraph)), limit):
+            part = paragraph[offset:offset + limit]
+            if chunk and len(chunk) + len(part) + 2 > limit:
+                chunks.append(chunk)
+                chunk = ""
+            chunk += ("\n\n" if chunk else "") + part
+    if chunk:
+        chunks.append(chunk)
+    return chunks
 
 
 def send_discord(webhook_url, subject, body):
-    """Post a readable summary and attach the full report without truncation."""
-    from io import BytesIO
-
+    """Publish readable blue cards directly in the channel."""
+    import time
     parts = webhook_url.split()
     if not parts or len(set(parts)) != 1:
         print("Discord delivery failed: configure one webhook URL")
         return False
     webhook_url = parts[0]
-
-    summary = f"**{subject}**\nFull comparison report attached."
-    try:
-        response = requests.post(
-            webhook_url,
-            params={"wait": "true"},
-            data={"payload_json": __import__("json").dumps({
-                "content": summary,
-                "allowed_mentions": {"parse": []}
-            })},
-            files={"files[0]": ("cbb-picks.txt", BytesIO(body.encode("utf-8")), "text/plain")},
-            timeout=30,
-        )
-        if not response.ok:
-            print(f"Discord delivery failed (HTTP {response.status_code})")
-            return False
-        print("Discord report delivered")
-        return True
-    except requests.RequestException:
-        # Request exceptions can contain the secret webhook URL.
-        print("Discord delivery failed: network request error")
-        return False
+    chunks = discord_chunks(body)
+    for index, chunk in enumerate(chunks, 1):
+        payload = {
+            "allowed_mentions": {"parse": []},
+            "embeds": [{
+                "title": subject if index == 1 else f"All games · continued ({index}/{len(chunks)})",
+                "description": chunk,
+                "color": 0x168BDE,
+                "footer": {"text": f"FanDuel only • Central Time • {index}/{len(chunks)}"}
+            }]
+        }
+        for attempt in range(3):
+            try:
+                response = requests.post(webhook_url, params={"wait": "true"},
+                                         json=payload, timeout=30)
+                if response.status_code == 429 and attempt < 2:
+                    delay = float(response.json().get("retry_after", 1))
+                    time.sleep(min(max(delay, 0), 10))
+                    continue
+                if not response.ok:
+                    print(f"Discord delivery failed (HTTP {response.status_code})")
+                    return False
+                break
+            except (requests.RequestException, ValueError):
+                print("Discord delivery failed: network or response error")
+                return False
+        if index < len(chunks):
+            time.sleep(1)
+    print("Discord report delivered")
+    return True
 
 
 def main():
-    """Main entry point."""
-    # Discord delivery does not require email credentials.
+    """Discord-only delivery; email credentials are never used."""
     webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
-
-    # Get email from environment or command line
-    to_email = os.getenv('EMAIL_TO')
-
-    if len(sys.argv) > 1:
-        to_email = sys.argv[1]
-
-    if not to_email and not webhook_url:
-        print("Error: No recipient email specified")
-        print("\nUsage:")
-        print("  python email_picks_gsheets.py your@email.com")
-        print("\nOr set EMAIL_TO in .env file")
+    if not webhook_url:
+        print("DISCORD_WEBHOOK_URL is required; email delivery is disabled.")
         sys.exit(1)
-
-    print(f"📧 Generating picks and sending to {to_email}...\n")
-
-    # Get picks
     picks_text = get_picks_text()
-
-    # Print to console
     print(picks_text)
-
-    # Send email
-    subject = f"CBB Picks - {datetime.now().strftime('%B %d, %Y')}"
-    if webhook_url:
-        if not send_discord(webhook_url, subject, picks_text):
-            sys.exit(1)
-    elif not send_email(to_email, subject, picks_text):
+    subject = f"CBB Picks · {datetime.now().strftime('%B %d, %Y')}"
+    if not send_discord(webhook_url, subject, picks_text):
         sys.exit(1)
 
 

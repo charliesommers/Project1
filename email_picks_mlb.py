@@ -252,26 +252,9 @@ def get_picks_text():
     return text
 
 
-def send_email(to_email, subject, body, from_email=None, smtp_server=None, smtp_port=None, password=None):
-    """Send email with picks."""
-    from_email = from_email or os.getenv('EMAIL_FROM')
-    password = password or os.getenv('EMAIL_PASSWORD')
-    smtp_server = smtp_server or os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port = int(smtp_port or os.getenv('SMTP_PORT', 587))
-
-    if not from_email or not password:
-        raise ValueError("Email credentials not configured")
-
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = from_email
-    msg['To'] = to_email
-    msg.set_content(body)
-
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.starttls()
-        server.login(from_email, password)
-        server.send_message(msg)
+def send_email(*args, **kwargs):
+    """Email delivery has been disabled by the user."""
+    raise RuntimeError("Pick emails are disabled; use Discord.")
 
 
 if __name__ == '__main__':

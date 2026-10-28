@@ -272,7 +272,7 @@ def get_picks_text():
             text += f"{i}. BET {recommended_team} {recommended_spread:+.1f}\n"
             text += f"{matchup_display} ({pick['conference']})\n"
             text += f"{game_time_str} CST\n"
-            text += f"Edge: {pick['edge']:.1f} pts\n"
+            text += f"Edge: {pick['edge']:.1f} pts | Book: {pick.get('bookmaker', 'unknown')}\n"
             text += f"Greg: {pick['gregs_spread']:+.1f} | Sportsbook: {pick['sportsbook_spread']:+.1f}\n\n"
 
         text += "="*50 + "\n\n"
@@ -357,7 +357,7 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}\n"
+            text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f} ({pick.get('bookmaker', 'unknown')})\n"
             text += f"{matchup_display} • {game_time_str}\n"
             text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Sportsbook: {pick['sportsbook_total']:.1f}\n"
 

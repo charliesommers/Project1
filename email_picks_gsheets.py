@@ -457,6 +457,12 @@ def send_discord(webhook_url, subject, body):
     """Post a readable summary and attach the full report without truncation."""
     from io import BytesIO
 
+    parts = webhook_url.split()
+    if not parts or len(set(parts)) != 1:
+        print("Discord delivery failed: configure one webhook URL")
+        return False
+    webhook_url = parts[0]
+
     summary = f"**{subject}**\nFull comparison report attached."
     try:
         response = requests.post(

@@ -1,0 +1,107 @@
+name: Test Notre Dame odds and Discord
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test-notre-dame.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check-odds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Verify saved API credentials and Notre Dame game
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          from urllib.request import Request, urlopen
+          from urllib.parse import urlencode
+          from urllib.error import HTTPError, URLError
+          
+          key = os.environ.get("ODDS_API_KEY", "")
+          if not key:
+              print("FAIL: ODDS_API_KEY secret is missing.")
+              sys.exit(1)
+          
+          def get_api(path, params):
+              params["apiKey"] = key
+              try:
+                  with urlopen("https://api.the-odds-api.com/v4/" + path + "?" + urlencode(params), timeout=30) as response:
+                      data = json.load(response)
+                      remaining = response.headers.get("x-requests-remaining", "unknown")
+                      print("API authentication accepted. Credits remaining:", remaining)
+                      return data
+              except HTTPError as error:
+                  print("API request failed. HTTP status:", error.code)
+                  try:
+                      code = json.load(error).get("error_code", "UNKNOWN")
+                      if code in ("INVALID_KEY", "MISSING_KEY", "OUT_OF_USAGE_CREDITS", "SPORT_NOT_FOUND"):
+                          print("API error:", code)
+                  except Exception:
+                      pass
+                  sys.exit(1)
+              except (URLError, TimeoutError):
+                  print("API network request failed.")
+                  sys.exit(1)
+          
+          get_api("sports/", {"all": "true"})
+          events = get_api("sports/basketball_ncaab/odds/", {
+              "regions": "us", "markets": "spreads,totals", "oddsFormat": "american",
+              "commenceTimeFrom": "2026-11-01T00:00:00Z",
+              "commenceTimeTo": "2026-11-03T00:00:00Z"
+          })
+          matches = [event for event in events if
+              any("notre dame" in event.get(field, "").lower() for field in ("home_team", "away_team")) and
+              any("villanova" in event.get(field, "").lower() for field in ("home_team", "away_team"))]
+          lines = ["TEST: Notre Dame vs Villanova", "Greg: Villanova -8 | Total 144", "API key: authentication accepted"]
+          if not matches:
+              lines.append("No odds for this matchup are currently returned by the API. No pick generated.")
+          else:
+              event = matches[0]
+              lines.append("Tipoff (UTC): " + event.get("commence_time", "TBD"))
+              for book in event.get("bookmakers", []):
+                  lines.append("\n" + book.get("title", book.get("key", "Book")))
+                  for market in book.get("markets", []):
+                      for outcome in market.get("outcomes", []):
+                          point = outcome.get("point")
+                          if point is None:
+                              continue
+                          lines.append(f"{outcome.get('name')}: {point} ({outcome.get('price')})")
+                          if market.get("key") == "totals" and outcome.get("name") == "Over":
+                              if point <= 139:
+                                  lines.append("TRIGGER: OVER (book at least 5 below Greg)")
+                              elif point >= 147:
+                                  lines.append("TRIGGER: UNDER (book at least 3 above Greg)")
+                              else:
+                                  lines.append("No total trigger.")
+          text = "\n".join(lines)
+          print(text)
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL", "")
+          if not webhook:
+              print("Discord test not sent: DISCORD_WEBHOOK_URL secret missing.")
+              sys.exit(1)
+          # Send bounded messages without enabling mentions or printing the secret URL.
+          for offset in range(0, len(text), 1800):
+              request = Request(webhook + "?wait=true",
+                  data=json.dumps({"content": text[offset:offset+1800], "allowed_mentions": {"parse": []}}).encode(),
+                  headers={"Content-Type": "application/json", "User-Agent": "CBB-Test/1.0"})
+              try:
+                  with urlopen(request, timeout=30) as response:
+                      print("Discord test delivered. HTTP", response.status)
+              except HTTPError as error:
+                  print("Discord test failed. HTTP", error.code)
+                  sys.exit(1)
+              except (URLError, TimeoutError):
+                  print("Discord network request failed.")
+                  sys.exit(1)
+          PY

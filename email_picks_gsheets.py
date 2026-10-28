@@ -15,7 +15,7 @@ from daily_picks_generator import DailyPicksGenerator
 
 
 # Greg's Google Sheets ID (from VSIN website)
-GOOGLE_SHEETS_ID = "1RoqluBp1zE5HduO-QNb5pKIQen98pnIEUZz7CERsPgU"
+GOOGLE_SHEETS_ID = "1WcpH4nYnwXRLEWz8VCgVsVkzu2Y4-wueb1zGZf1KOlM"
 GOOGLE_SHEETS_URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=xlsx"
 
 
@@ -457,15 +457,45 @@ def send_email(to_email, subject, body, from_email=None, smtp_server=None, smtp_
         return False
 
 
+def send_discord(webhook_url, subject, body):
+    """Post a readable summary and attach the full report without truncation."""
+    from io import BytesIO
+
+    summary = f"**{subject}**\nFull comparison report attached."
+    try:
+        response = requests.post(
+            webhook_url,
+            params={"wait": "true"},
+            data={"payload_json": __import__("json").dumps({
+                "content": summary,
+                "allowed_mentions": {"parse": []}
+            })},
+            files={"files[0]": ("cbb-picks.txt", BytesIO(body.encode("utf-8")), "text/plain")},
+            timeout=30,
+        )
+        if not response.ok:
+            print(f"Discord delivery failed (HTTP {response.status_code})")
+            return False
+        print("Discord report delivered")
+        return True
+    except requests.RequestException:
+        # Request exceptions can contain the secret webhook URL.
+        print("Discord delivery failed: network request error")
+        return False
+
+
 def main():
     """Main entry point."""
+    # Discord delivery does not require email credentials.
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+
     # Get email from environment or command line
     to_email = os.getenv('EMAIL_TO')
 
     if len(sys.argv) > 1:
         to_email = sys.argv[1]
 
-    if not to_email:
+    if not to_email and not webhook_url:
         print("Error: No recipient email specified")
         print("\nUsage:")
         print("  python email_picks_gsheets.py your@email.com")
@@ -482,7 +512,11 @@ def main():
 
     # Send email
     subject = f"CBB Picks - {datetime.now().strftime('%B %d, %Y')}"
-    send_email(to_email, subject, picks_text)
+    if webhook_url:
+        if not send_discord(webhook_url, subject, picks_text):
+            sys.exit(1)
+    elif not send_email(to_email, subject, picks_text):
+        sys.exit(1)
 
 
 if __name__ == '__main__':

@@ -14,14 +14,14 @@ class DailyPicksGenerator:
     Generates daily betting picks based on totals strategy.
 
     Strategy:
-    - Bet UNDER when Greg's total is ≥5 points below sportsbook total
-    - Bet OVER when Greg's total is ≥3 points above sportsbook total
+    - Bet UNDER when Greg's total is ≥3 points below sportsbook total
+    - Bet OVER when Greg's total is ≥5 points above sportsbook total
     """
 
     def __init__(
         self,
-        under_threshold: float = 5.0,
-        over_threshold: float = 3.0
+        under_threshold: float = 3.0,
+        over_threshold: float = 5.0
     ):
         """
         Initialize picks generator.
@@ -98,6 +98,8 @@ class DailyPicksGenerator:
             # Now both spreads are from favorite's perspective (both should be negative)
             # Calculate edge
             edge = abs(gregs_spread - sportsbook_spread)
+            if edge == 0:
+                continue
 
             # Determine pick recommendation
             # Logic explanation with examples:
@@ -218,6 +220,8 @@ class DailyPicksGenerator:
                 # Greg's line is HIGHER or EQUAL - bet OVER
                 pick = 'OVER'
 
+            triggered = abs(edge) >= (self.under_threshold if pick == 'UNDER' else self.over_threshold)
+
             # Determine confidence
             confidence = 'medium'
             if pick == 'UNDER':
@@ -249,6 +253,7 @@ class DailyPicksGenerator:
                 'gregs_total': gregs_total,
                 'sportsbook_total': sportsbook_total,
                 'edge': edge,
+                'triggered': triggered,
                 'confidence': confidence,
                 'reasoning': self._get_reasoning(pick, edge),
                 'game_time': sportsbook_game.get('commence_time', ''),

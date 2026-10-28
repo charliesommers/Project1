@@ -1,4 +1,5 @@
 name: Test FanDuel report and Discord
+# Validate compact season-tab date parsing with a live preview.
 
 on:
   workflow_dispatch:

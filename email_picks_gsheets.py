@@ -114,7 +114,7 @@ def get_picks_text():
         return "❌ Could not download Greg's lines from Google Sheets"
 
     # Parse
-    parser = GregsCBBParser(file_path)
+    parser = GregsCBBParser(file_path, date_reference=datetime.now().date())
     parser.load_file()
 
     print(f"DEBUG - Sheet names in Greg's file: {parser.excel_file.sheet_names}")

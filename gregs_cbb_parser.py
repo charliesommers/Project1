@@ -12,13 +12,14 @@ import sys
 class GregsCBBParser:
     """Parser for Greg's CBB handicapping spreadsheets."""
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, date_reference=None):
         """
         Initialize parser with Excel file path.
 
         Args:
             file_path: Path to Greg's CBB handicapping Excel file
         """
+        self.date_reference = date_reference
         self.file_path = file_path
         self.excel_file = None
         self.all_games = []
@@ -44,6 +45,20 @@ class GregsCBBParser:
             # Current season uses slash-separated dates.
             if '/' in sheet_name:
                 return datetime.strptime(sheet_name, "%m/%d/%y")
+
+            # XLSX exports can compact 11/1/26 to 11126. Resolve ambiguity
+            # near the live report date; historical callers retain legacy parsing.
+            if len(sheet_name) == 5 and sheet_name.isdigit() and self.date_reference:
+                candidates = []
+                for month_text, day_text in ((sheet_name[:1], sheet_name[1:3]),
+                                             (sheet_name[:2], sheet_name[2:3])):
+                    try:
+                        candidates.append(datetime(2000 + int(sheet_name[3:]),
+                                                   int(month_text), int(day_text)))
+                    except ValueError:
+                        pass
+                if candidates:
+                    return min(candidates, key=lambda value: abs((value.date() - self.date_reference).days))
 
             # MDYY format (e.g., "1925" = 1/9/25)
             if len(sheet_name) == 4:

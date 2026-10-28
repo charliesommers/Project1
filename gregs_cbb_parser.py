@@ -41,6 +41,10 @@ class GregsCBBParser:
             if sheet_name.startswith("Copy of"):
                 return None
 
+            # Current season uses slash-separated dates.
+            if '/' in sheet_name:
+                return datetime.strptime(sheet_name, "%m/%d/%y")
+
             # MDYY format (e.g., "1925" = 1/9/25)
             if len(sheet_name) == 4:
                 month = int(sheet_name[0])

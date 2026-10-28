@@ -149,8 +149,8 @@ def get_picks_text():
     # Get odds from ALL bookmakers in a SINGLE API request (saves credits!)
     fetcher = OddsFetcher()
 
-    print("Fetching Fanatics odds only...")
-    all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers(bookmaker='fanatics')
+    print("Fetching odds from available US bookmakers...")
+    all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers()
 
     # Get list of unique bookmakers found
     bookmakers_found = list(set(game['source_bookmaker'] for game in all_sportsbook_data if game.get('source_bookmaker')))
@@ -158,7 +158,7 @@ def get_picks_text():
     if not all_sportsbook_data:
         print(f"ℹ️  No sportsbook odds available from any source")
         text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"
-        text += f"⚠️  No Fanatics odds available. Fanatics requires a paid Odds API subscription; odds may also be unposted.\n"
+        text += f"⚠️  No sportsbook odds available right now.\n"
         text += f"Total games from Greg: {len(games)}\n\n"
 
         # Show top games sorted by total
@@ -171,7 +171,7 @@ def get_picks_text():
 
         text += "─"*60 + "\n"
         text += "💡 Compare to your sportsbook when odds are posted\n"
-        text += "⬇️ UNDER when Fanatics ≥3 above Greg | ⬆️ OVER when Fanatics ≥5 below Greg\n"
+        text += "⬇️ UNDER when Sportsbook ≥3 above Greg | ⬆️ OVER when Sportsbook ≥5 below Greg\n"
         text += "─"*60 + "\n"
         return text
 
@@ -232,7 +232,7 @@ def get_picks_text():
 
     # Format as text
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')}\n"
-    text += f"FANATICS CBB TOTALS COMPARISONS\n\n"
+    text += f"SPORTSBOOK CBB TOTALS COMPARISONS\n\n"
     text += f"{len(picks_with_odds)} games with odds\n"
     text += f"{len(games_without_odds)} pending\n"
 
@@ -273,7 +273,7 @@ def get_picks_text():
             text += f"{matchup_display} ({pick['conference']})\n"
             text += f"{game_time_str} CST\n"
             text += f"Edge: {pick['edge']:.1f} pts\n"
-            text += f"Greg: {pick['gregs_spread']:+.1f} | Fanatics: {pick['sportsbook_spread']:+.1f}\n\n"
+            text += f"Greg: {pick['gregs_spread']:+.1f} | Sportsbook: {pick['sportsbook_spread']:+.1f}\n\n"
 
         text += "="*50 + "\n\n"
 
@@ -359,7 +359,7 @@ def get_picks_text():
 
             text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}\n"
             text += f"{matchup_display} • {game_time_str}\n"
-            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Fanatics: {pick['sportsbook_total']:.1f}\n"
+            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Sportsbook: {pick['sportsbook_total']:.1f}\n"
 
         else:  # pending game
             game = item['data']

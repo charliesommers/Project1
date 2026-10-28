@@ -76,62 +76,9 @@ Strategy: UNDER ≥5 below | OVER ≥3 above
     return text
 
 
-def send_email(to_email, subject, body, from_email=None, smtp_server=None, smtp_port=None, password=None):
-    """
-    Send email with picks.
-
-    Args:
-        to_email: Recipient email address
-        subject: Email subject
-        body: Email body (plain text)
-        from_email: Sender email (defaults to env var EMAIL_FROM)
-        smtp_server: SMTP server (defaults to env var SMTP_SERVER or Gmail)
-        smtp_port: SMTP port (defaults to env var SMTP_PORT or 587)
-        password: Email password/app password (defaults to env var EMAIL_PASSWORD)
-    """
-    # Get config from environment variables or parameters
-    from_email = from_email or os.getenv('EMAIL_FROM')
-    smtp_server = smtp_server or os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port = int(smtp_port or os.getenv('SMTP_PORT', 587))
-    password = password or os.getenv('EMAIL_PASSWORD')
-
-    if not from_email or not password:
-        print("Error: Email credentials not configured")
-        print("Set EMAIL_FROM and EMAIL_PASSWORD in .env file")
-        print("\nExample .env:")
-        print("EMAIL_FROM=your@gmail.com")
-        print("EMAIL_PASSWORD=your_app_password")
-        print("SMTP_SERVER=smtp.gmail.com")
-        print("SMTP_PORT=587")
-        return False
-
-    try:
-        # Create message
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = from_email
-        msg['To'] = to_email
-        msg.set_content(body)
-
-        # Send email
-        if smtp_port == 465:
-            # SSL
-            with smtplib.SMTP_SSL(smtp_server, smtp_port) as smtp:
-                smtp.login(from_email, password)
-                smtp.send_message(msg)
-        else:
-            # TLS (default for most services)
-            with smtplib.SMTP(smtp_server, smtp_port) as smtp:
-                smtp.starttls()
-                smtp.login(from_email, password)
-                smtp.send_message(msg)
-
-        print(f"✅ Email sent to {to_email}")
-        return True
-
-    except Exception as e:
-        print(f"❌ Failed to send email: {e}")
-        return False
+def send_email(*args, **kwargs):
+    """Email delivery has been disabled by the user."""
+    raise RuntimeError("Pick emails are disabled; use Discord.")
 
 
 def main():

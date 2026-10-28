@@ -29,7 +29,7 @@ class OddsFetcher:
         self.api_key = api_key or os.environ.get('ODDS_API_KEY')
         self.base_url = "https://api.the-odds-api.com/v4"
 
-    def fetch_ncaab_odds_all_bookmakers(self) -> List[Dict]:
+    def fetch_ncaab_odds_all_bookmakers(self, bookmaker: Optional[str] = None) -> List[Dict]:
         """
         Fetch NCAA Basketball odds from ALL bookmakers in a single API request.
         More efficient than calling fetch_ncaab_odds() multiple times.
@@ -41,7 +41,6 @@ class OddsFetcher:
             print("ERROR: No API key provided. Set ODDS_API_KEY environment variable")
             return []
 
-        print(f"Using API key: {self.api_key[:8]}...{self.api_key[-4:]}")
 
         endpoint = f"{self.base_url}/sports/basketball_ncaab/odds"
 
@@ -52,6 +51,9 @@ class OddsFetcher:
             'markets': 'h2h,spreads,totals',
             'oddsFormat': 'american'
         }
+
+        if bookmaker:
+            params['bookmakers'] = bookmaker
 
         print(f"Fetching odds from: {endpoint}")
         print(f"Getting ALL US bookmakers in single request")
@@ -84,6 +86,8 @@ class OddsFetcher:
                 # Process each bookmaker's odds for this game
                 for bookmaker_info in bookmakers_data:
                     bookmaker_name = bookmaker_info.get('key', '')
+                    if bookmaker and bookmaker_name != bookmaker:
+                        continue
                     markets = bookmaker_info.get('markets', [])
 
                     # Extract totals and spreads
@@ -103,7 +107,7 @@ class OddsFetcher:
                                     spread = outcome.get('point')
                                     break
 
-                    if total or spread:
+                    if total is not None or spread is not None:
                         structured_games.append({
                             'home_team': home_team,
                             'away_team': away_team,
@@ -117,7 +121,7 @@ class OddsFetcher:
             return structured_games
 
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching odds: {e}")
+            print("Error fetching odds: network or API request failed")
             return []
 
     def fetch_ncaab_odds(self, bookmaker: str = 'bet365') -> List[Dict]:
@@ -158,7 +162,6 @@ class OddsFetcher:
 
             if response.status_code == 401:
                 print("ERROR: 401 Unauthorized - API key is invalid")
-                print(f"API key used: {self.api_key}")
                 return []
             elif response.status_code == 429:
                 print("ERROR: 429 Rate limit exceeded - API quota exhausted")

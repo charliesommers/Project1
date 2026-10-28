@@ -98,6 +98,15 @@ def clean_team_name(team_name: str) -> str:
     return name
 
 
+def game_sort_time(value):
+    """Sort valid tipoffs by instant, with unknown/invalid times last."""
+    try:
+        tipoff = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return tipoff.timestamp() if tipoff.tzinfo else float("inf")
+    except (AttributeError, TypeError, ValueError):
+        return float("inf")
+
+
 def get_picks_text():
     """Get picks as formatted text."""
     # Download Greg's Google Sheet
@@ -156,24 +165,7 @@ def get_picks_text():
     bookmakers_found = list(set(game['source_bookmaker'] for game in all_sportsbook_data if game.get('source_bookmaker')))
 
     if not all_sportsbook_data:
-        print(f"ℹ️  No sportsbook odds available from any source")
-        text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"
-        text += f"⚠️  No sportsbook odds available right now.\n"
-        text += f"Total games from Greg: {len(games)}\n\n"
-
-        # Show top games sorted by total
-        sorted_games = sorted(games, key=lambda x: x['total'], reverse=True)
-        for i, game in enumerate(sorted_games[:15], 1):
-            spread_str = f"{game['spread']:+.1f}"
-            text += f"{i}. {game['matchup']}\n"
-            text += f"   Spread: {game['favorite']} {spread_str}\n"
-            text += f"   Total: {game['total']:.1f}\n\n"
-
-        text += "─"*60 + "\n"
-        text += "💡 Compare to your sportsbook when odds are posted\n"
-        text += "⬇️ UNDER when Sportsbook ≥3 above Greg | ⬆️ OVER when Sportsbook ≥5 below Greg\n"
-        text += "─"*60 + "\n"
-        return text
+        print("No sportsbook odds available; listing every game as pending.")
 
     print(f"✓ Total combined: {len(all_sportsbook_data)} games from {len(bookmakers_found)} bookmakers")
 
@@ -225,13 +217,12 @@ def get_picks_text():
     if games_without_odds:
         print(f"\n{len(games_without_odds)} pending games (no odds yet) - times will show as TBD")
 
-    # Generate top spread edges for major conferences
-    major_conferences = ['ACC', 'Big 12', 'Big Ten', 'SEC', 'Big East']
+    # Rank spread discrepancies across all conferences.
     spread_picks = generator.generate_spread_picks(games, all_sportsbook_data)
-    top_spread_picks = spread_picks[:10]  # Top 5 biggest edges
+    top_spread_picks = spread_picks[:10]  # Top 10 biggest discrepancies
 
     # Format as text
-    text = f"\n📅 {datetime.now().strftime('%B %d, %Y')}\n"
+    text = f"\n📅 Games for {games[0]['date'].strftime('%B %d, %Y')}\n"
     text += f"SPORTSBOOK CBB TOTALS COMPARISONS\n\n"
     text += f"{len(picks_with_odds)} games with odds\n"
     text += f"{len(games_without_odds)} pending\n"
@@ -244,7 +235,7 @@ def get_picks_text():
 
         for i, pick in enumerate(top_spread_picks, 1):
             # Format game time
-            game_time_str = ""
+            game_time_str = "TBD"
             if pick.get('game_time'):
                 try:
                     import pytz
@@ -271,11 +262,16 @@ def get_picks_text():
 
             text += f"{i}. BET {recommended_team} {recommended_spread:+.1f}\n"
             text += f"{matchup_display} ({pick['conference']})\n"
-            text += f"{game_time_str} CST\n"
+            text += f"{game_time_str} CT\n"
             text += f"Edge: {pick['edge']:.1f} pts | Book: {pick.get('bookmaker', 'unknown')}\n"
             text += f"Greg: {pick['gregs_spread']:+.1f} | Sportsbook: {pick['sportsbook_spread']:+.1f}\n\n"
 
         text += "="*50 + "\n\n"
+
+    text += "\nALL GAMES — TIPOFF ORDER (Central Time)\n"
+    if not all_sportsbook_data:
+        text += "No sportsbook odds available; spread rankings unavailable.\n"
+    text += "Unknown tipoff times appear last, alphabetically.\n\n"
 
     # Display ALL games (with and without odds) in chronological order
     # Create a combined list with pending games marked
@@ -286,7 +282,7 @@ def get_picks_text():
         all_games_list.append({
             'type': 'with_odds',
             'data': pick,
-            'sort_time': pick.get('game_time', 'ZZZ'),
+            'sort_time': game_sort_time(pick.get('game_time')),
             'sort_team': pick.get('away_team', '').lower()
         })
 
@@ -312,7 +308,7 @@ def get_picks_text():
         all_games_list.append({
             'type': 'pending',
             'data': game,
-            'sort_time': 'ZZZZZZZZ',  # All pending games at very end
+            'sort_time': float('inf'),  # All pending games at very end
             'sort_team': away_team.lower()  # Sort alphabetically by away team
         })
 
@@ -320,6 +316,7 @@ def get_picks_text():
     all_games_list.sort(key=lambda x: (x['sort_time'], x['sort_team']))
 
     for i, item in enumerate(all_games_list, 1):
+        text += f"{i}. "
         if item['type'] == 'with_odds':
             pick = item['data']
             edge = abs(pick['edge'])
@@ -336,7 +333,7 @@ def get_picks_text():
                 emoji = "⚠️  "
 
             # Format game time
-            game_time_str = ""
+            game_time_str = "TBD"
             if pick.get('game_time'):
                 try:
                     import pytz

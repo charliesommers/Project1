@@ -86,7 +86,8 @@ jobs:
                                   lines.append("No total trigger.")
           text = "\n".join(lines)
           print(text)
-          webhook = os.environ.get("DISCORD_WEBHOOK_URL", "")
+          webhook_parts = os.environ.get("DISCORD_WEBHOOK_URL", "").split()
+          webhook = webhook_parts[0] if webhook_parts and len(set(webhook_parts)) == 1 else ""
           if not webhook:
               print("Discord test not sent: DISCORD_WEBHOOK_URL secret missing.")
               sys.exit(1)
@@ -101,7 +102,7 @@ jobs:
               except HTTPError as error:
                   print("Discord test failed. HTTP", error.code)
                   sys.exit(1)
-              except (URLError, TimeoutError):
+              except (URLError, TimeoutError, ValueError):
                   print("Discord network request failed.")
                   sys.exit(1)
           PY

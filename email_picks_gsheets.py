@@ -144,14 +144,13 @@ def get_picks_text():
                 games = [game for game in all_games if game['date'].date() == next_date]
                 print(f"No games today/tomorrow, found {len(games)} games for {next_date.strftime('%B %d, %Y')}")
             else:
-                games = all_games[:10]  # Just show some games
-                print(f"No future games found, showing sample of {len(games)} games")
+                return "No current or upcoming games in Greg\'s sheet; no comparisons generated."
 
     # Get odds from ALL bookmakers in a SINGLE API request (saves credits!)
     fetcher = OddsFetcher()
 
-    print(f"Fetching odds from ALL bookmakers in single API request...")
-    all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers()
+    print("Fetching Fanatics odds only...")
+    all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers(bookmaker='fanatics')
 
     # Get list of unique bookmakers found
     bookmakers_found = list(set(game['source_bookmaker'] for game in all_sportsbook_data if game.get('source_bookmaker')))
@@ -159,7 +158,7 @@ def get_picks_text():
     if not all_sportsbook_data:
         print(f"ℹ️  No sportsbook odds available from any source")
         text = f"\n📅 {datetime.now().strftime('%B %d, %Y')} - GREG'S CBB LINES\n\n"
-        text += f"⚠️  No sportsbook odds available right now\n"
+        text += f"⚠️  No Fanatics odds available. Fanatics requires a paid Odds API subscription; odds may also be unposted.\n"
         text += f"Total games from Greg: {len(games)}\n\n"
 
         # Show top games sorted by total
@@ -172,7 +171,7 @@ def get_picks_text():
 
         text += "─"*60 + "\n"
         text += "💡 Compare to your sportsbook when odds are posted\n"
-        text += "⬇️ UNDER when Greg ≥5 below | ⬆️ OVER when Greg ≥3 above\n"
+        text += "⬇️ UNDER when Fanatics ≥3 above Greg | ⬆️ OVER when Fanatics ≥5 below Greg\n"
         text += "─"*60 + "\n"
         return text
 
@@ -190,7 +189,7 @@ def get_picks_text():
         print(f"  {away} @ {home}")
 
     # Generate picks for games WITH odds
-    generator = DailyPicksGenerator(under_threshold=5.0, over_threshold=3.0)
+    generator = DailyPicksGenerator(under_threshold=3.0, over_threshold=5.0)
     picks_with_odds = generator.generate_picks(games, all_sportsbook_data)
 
     # Sort by game time first, then alphabetically by away team (Bet365 style)
@@ -205,7 +204,7 @@ def get_picks_text():
     top_picks = []
     for pick in picks_with_odds:
         edge = abs(pick['edge'])
-        if (pick['pick'] == 'UNDER' and edge >= 5.0) or (pick['pick'] == 'OVER' and edge >= 3.0):
+        if (pick['pick'] == 'UNDER' and edge >= 3.0) or (pick['pick'] == 'OVER' and edge >= 5.0):
             top_picks.append(pick)
 
     # Find games WITHOUT odds
@@ -228,19 +227,19 @@ def get_picks_text():
 
     # Generate top spread edges for major conferences
     major_conferences = ['ACC', 'Big 12', 'Big Ten', 'SEC', 'Big East']
-    spread_picks = generator.generate_spread_picks(games, all_sportsbook_data, major_conferences)
-    top_spread_picks = spread_picks[:5]  # Top 5 biggest edges
+    spread_picks = generator.generate_spread_picks(games, all_sportsbook_data)
+    top_spread_picks = spread_picks[:10]  # Top 5 biggest edges
 
     # Format as text
     text = f"\n📅 {datetime.now().strftime('%B %d, %Y')}\n"
-    text += f"CBB TOTALS PICKS\n\n"
+    text += f"FANATICS CBB TOTALS COMPARISONS\n\n"
     text += f"{len(picks_with_odds)} games with odds\n"
     text += f"{len(games_without_odds)} pending\n"
 
     # Display TOP SPREAD EDGES (major conferences only)
     if top_spread_picks:
         text += "\n" + "="*50 + "\n"
-        text += "🏀 TOP SPREAD EDGES (Major Conferences)\n"
+        text += "🏀 LARGEST SPREAD DISCREPANCIES (All Conferences)\n"
         text += "="*50 + "\n\n"
 
         for i, pick in enumerate(top_spread_picks, 1):
@@ -274,7 +273,7 @@ def get_picks_text():
             text += f"{matchup_display} ({pick['conference']})\n"
             text += f"{game_time_str} CST\n"
             text += f"Edge: {pick['edge']:.1f} pts\n"
-            text += f"Greg: {pick['gregs_spread']:+.1f} | Book: {pick['sportsbook_spread']:+.1f}\n\n"
+            text += f"Greg: {pick['gregs_spread']:+.1f} | Fanatics: {pick['sportsbook_spread']:+.1f}\n\n"
 
         text += "="*50 + "\n\n"
 
@@ -327,13 +326,13 @@ def get_picks_text():
 
             # Determine emoji (no text, just emoji)
             emoji = ""
-            if pick['pick'] == 'UNDER' and edge >= 5.0:
+            if pick['pick'] == 'UNDER' and edge >= 3.0:
                 emoji = "🔥 "
-            elif pick['pick'] == 'OVER' and edge >= 3.0:
+            elif pick['pick'] == 'OVER' and edge >= 5.0:
                 emoji = "🔥 "
-            elif pick['pick'] == 'UNDER' and edge >= 3.0:
+            elif pick['pick'] == 'UNDER' and edge >= 1.0:
                 emoji = "⚠️  "
-            elif pick['pick'] == 'OVER' and edge >= 1.0:
+            elif pick['pick'] == 'OVER' and edge >= 3.0:
                 emoji = "⚠️  "
 
             # Format game time
@@ -360,7 +359,7 @@ def get_picks_text():
 
             text += f"{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}\n"
             text += f"{matchup_display} • {game_time_str}\n"
-            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Book: {pick['sportsbook_total']:.1f}\n"
+            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | Fanatics: {pick['sportsbook_total']:.1f}\n"
 
         else:  # pending game
             game = item['data']
@@ -394,7 +393,7 @@ def get_picks_text():
             text += "\n"
 
     text += "\n" + "-"*50 + "\n"
-    text += "🔥 Strong bet (UNDER ≥5 | OVER ≥3)\n"
+    text += "🔥 Strong bet (UNDER ≥3 | OVER ≥5)\n"
     text += "⚠️  Close (within 2 pts)\n"
     text += "-"*50 + "\n"
 

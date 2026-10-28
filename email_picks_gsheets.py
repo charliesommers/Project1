@@ -352,7 +352,10 @@ def get_picks_text():
             else:
                 matchup_display = pick['matchup']
 
-            text += f"**{emoji}{pick['pick']} {pick['sportsbook_total']:.1f}**\n"
+            if pick.get("triggered"):
+                text += f"**🔥 {pick['pick']} {pick['sportsbook_total']:.1f}**\n"
+            else:
+                text += f"**PASS · Total {pick['sportsbook_total']:.1f}**\n"
             text += f"{matchup_display} • {game_time_str}\n"
             text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | FanDuel: {pick['sportsbook_total']:.1f}\n"
 

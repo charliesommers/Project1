@@ -1,8 +1,13 @@
-name: Test FanDuel report and Discord
+name: Run FanDuel report for selected date
 # Validate compact season-tab date parsing with a live preview.
 
 on:
   workflow_dispatch:
+    inputs:
+      report_date:
+        description: 'Exact slate date (YYYY-MM-DD)'
+        default: '2026-11-02'
+        required: true
   push:
     paths:
       - '.github/workflows/test-notre-dame.yml'
@@ -25,4 +30,5 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TZ: America/Chicago
+          REPORT_DATE: ${{ inputs.report_date || '2026-11-02' }}
         run: python email_picks_gsheets.py

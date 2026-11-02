@@ -105,7 +105,7 @@ def game_sort_time(value):
         return float("inf")
 
 
-def get_picks_text():
+def get_picks_text(report_date=None):
     """Get picks as formatted text."""
     # Download Greg's Google Sheet
     file_path = download_gregs_sheet()
@@ -128,11 +128,15 @@ def get_picks_text():
 
     # Get today's games only
     from datetime import timedelta
-    today = datetime.now().date()  # Just the date, not time
+    report_date = report_date or os.getenv("REPORT_DATE")
+    today = datetime.strptime(report_date, "%Y-%m-%d").date() if report_date else datetime.now().date()
     tomorrow = today + timedelta(days=1)
 
     # Try today's games first
     todays_games = [game for game in all_games if game['date'].date() == today]
+
+    if report_date and not todays_games:
+        return f"No games found in Greg's sheet for {report_date}; no other date substituted."
 
     if todays_games:
         games = todays_games
@@ -466,7 +470,7 @@ def main():
         sys.exit(1)
     picks_text = get_picks_text()
     print(picks_text)
-    subject = f"CBB Picks · {datetime.now().strftime('%B %d, %Y')}"
+    subject = f"CBB Picks · {os.getenv('REPORT_DATE') or datetime.now().strftime('%B %d, %Y')}"
     if not send_discord(webhook_url, subject, picks_text):
         sys.exit(1)
 

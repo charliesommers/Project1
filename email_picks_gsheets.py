@@ -6,7 +6,8 @@ Uses Greg's public Google Sheet instead of VSIN scraping
 import os
 import sys
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from gregs_cbb_parser import GregsCBBParser
 from odds_fetcher import OddsFetcher
 from daily_picks_generator import DailyPicksGenerator
@@ -105,6 +106,16 @@ def game_sort_time(value):
         return float("inf")
 
 
+def resolve_report_date(report_date=None, now=None):
+    """Explicit date wins; otherwise roll to tomorrow at 6 PM Chicago time."""
+    explicit = report_date or os.getenv("REPORT_DATE")
+    if explicit:
+        return datetime.strptime(explicit, "%Y-%m-%d").date()
+    central = ZoneInfo("America/Chicago")
+    local_now = now.astimezone(central) if now else datetime.now(central)
+    return local_now.date() + timedelta(days=1 if local_now.hour >= 18 else 0)
+
+
 def get_picks_text(report_date=None):
     """Get picks as formatted text."""
     # Download Greg's Google Sheet
@@ -114,7 +125,7 @@ def get_picks_text(report_date=None):
         return "❌ Could not download Greg's lines from Google Sheets"
 
     # Parse
-    parser = GregsCBBParser(file_path, date_reference=datetime.now().date())
+    parser = GregsCBBParser(file_path, date_reference=resolve_report_date(report_date))
     parser.load_file()
 
     print(f"DEBUG - Sheet names in Greg's file: {parser.excel_file.sheet_names}")
@@ -126,36 +137,11 @@ def get_picks_text(report_date=None):
 
     print(f"DEBUG - Total games parsed from all sheets: {len(all_games)}")
 
-    # Get today's games only
-    from datetime import timedelta
-    report_date = report_date or os.getenv("REPORT_DATE")
-    today = datetime.strptime(report_date, "%Y-%m-%d").date() if report_date else datetime.now().date()
-    tomorrow = today + timedelta(days=1)
-
-    # Try today's games first
-    todays_games = [game for game in all_games if game['date'].date() == today]
-
-    if report_date and not todays_games:
-        return f"No games found in Greg's sheet for {report_date}; no other date substituted."
-
-    if todays_games:
-        games = todays_games
-        print(f"Found {len(games)} games for TODAY ({today.strftime('%B %d, %Y')})")
-    else:
-        # If no games today, try tomorrow
-        tomorrows_games = [game for game in all_games if game['date'].date() == tomorrow]
-        if tomorrows_games:
-            games = tomorrows_games
-            print(f"No games today, found {len(games)} games for TOMORROW ({tomorrow.strftime('%B %d, %Y')})")
-        else:
-            # Fallback: get next available date
-            future_games = [game for game in all_games if game['date'].date() >= today]
-            if future_games:
-                next_date = min(game['date'] for game in future_games).date()
-                games = [game for game in all_games if game['date'].date() == next_date]
-                print(f"No games today/tomorrow, found {len(games)} games for {next_date.strftime('%B %d, %Y')}")
-            else:
-                return "No current or upcoming games in Greg\'s sheet; no comparisons generated."
+    target_date = resolve_report_date(report_date)
+    games = [game for game in all_games if game['date'].date() == target_date]
+    if not games:
+        return f"No games found in Greg's sheet for {target_date:%B %d, %Y}; no other date substituted."
+    print(f"Selected {len(games)} games for {target_date:%B %d, %Y} (Central time selection)")
 
     # Get odds from ALL bookmakers in a SINGLE API request (saves credits!)
     fetcher = OddsFetcher()
@@ -470,7 +456,7 @@ def main():
         sys.exit(1)
     picks_text = get_picks_text()
     print(picks_text)
-    subject = f"CBB Picks · {os.getenv('REPORT_DATE') or datetime.now().strftime('%B %d, %Y')}"
+    subject = f"CBB Picks · {resolve_report_date():%B %d, %Y}"
     if not send_discord(webhook_url, subject, picks_text):
         sys.exit(1)
 

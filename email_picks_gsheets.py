@@ -116,6 +116,26 @@ def resolve_report_date(report_date=None, now=None):
     return local_now.date() + timedelta(days=1 if local_now.hour >= 18 else 0)
 
 
+
+def spread_comparison_line(game, sportsbook_game):
+    """Compare both spreads from Greg's favorite's perspective."""
+    team = clean_team_name(game["favorite"])
+    greg = game.get("spread")
+    greg_text = f"{greg:+.1f}" if greg is not None else "TBD"
+    fan_duel = None
+    if sportsbook_game and sportsbook_game.get("spread") is not None:
+        from scores_fetcher import ScoresFetcher
+        matcher = ScoresFetcher()
+        home = matcher._teams_match(game["favorite"], sportsbook_game.get("home_team", ""))
+        away = matcher._teams_match(game["favorite"], sportsbook_game.get("away_team", ""))
+        if home and not away:
+            fan_duel = sportsbook_game["spread"]
+        elif away and not home:
+            fan_duel = -sportsbook_game["spread"]
+    fan_duel_text = f"{fan_duel:+.1f}" if fan_duel is not None else "pending"
+    return f"Spread ({team}): Greg {greg_text} | FanDuel {fan_duel_text}\n"
+
+
 def get_picks_text(report_date=None):
     """Get picks as formatted text."""
     # Download Greg's Google Sheet
@@ -303,6 +323,7 @@ def get_picks_text(report_date=None):
     # Sort combined list by time, then away team
     all_games_list.sort(key=lambda x: (x['sort_time'], x['sort_team']))
 
+    games_by_matchup = {game['matchup']: game for game in games}
     for i, item in enumerate(all_games_list, 1):
         text += f"{i}. "
         if item['type'] == 'with_odds':
@@ -376,6 +397,10 @@ def get_picks_text(report_date=None):
             text += f"⏳ PENDING\n"
             text += f"{matchup_display} • TBD\n"
             text += f"Greg's Total: {game['total']:.1f}\n"
+
+        greg_game = games_by_matchup[item["data"]["matchup"]]
+        sportsbook_game = generator._match_game(greg_game, all_sportsbook_data)
+        text += spread_comparison_line(greg_game, sportsbook_game)
 
         if i < len(all_games_list):
             text += "\n"

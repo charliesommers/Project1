@@ -2,39 +2,95 @@ name: Daily CBB Picks Discord
 
 on:
   schedule:
-    # 6 AM Central, following daylight saving time.
-    - cron: '0 6 * * *'
-      timezone: America/Chicago
-  # Runs once when this workflow is updated, and supports phone-app reruns.
+    # 6 AM Chicago is 11 UTC in summer and 12 UTC in winter.
+    # A second attempt seven minutes later covers missed/failed first triggers.
+    - cron: '0 11 * * *'
+    - cron: '7 11 * * *'
+    - cron: '0 12 * * *'
+    - cron: '7 12 * * *'
   push:
+    branches:
+      - 'claude/sports-gambling-picker-2x0yO'
     paths:
       - '.github/workflows/daily-picks.yml'
-  workflow_dispatch:  # Before 6 PM CT: today; from 6 PM CT: tomorrow
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbb-report-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   send-picks:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
+    - name: Select the Central-time morning schedule
+      id: clock
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        CRON: ${{ github.event.schedule }}
+      run: |
+        python3 - <<'PY'
+        import os
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        now = datetime.now(ZoneInfo("America/Chicago"))
+        scheduled = os.environ["EVENT_NAME"] == "schedule"
+        expected_hour = 6 - int(now.utcoffset().total_seconds() / 3600)
+        cron = os.environ.get("CRON", "").split()
+        send = not scheduled or (len(cron) == 5 and int(cron[1]) == expected_hour)
+        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+            output.write(f"send={str(send).lower()}\n")
+            output.write(f"date={now:%Y-%m-%d}\n")
+            output.write(f"report_date={now:%Y-%m-%d}\n" if scheduled else "report_date=\n")
+        print(f"Central time: {now:%Y-%m-%d %H:%M %Z}; send={send}")
+        PY
+
+    - name: Check whether this morning's report was delivered
+      id: delivered
+      if: github.event_name == 'schedule' && steps.clock.outputs.send == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: .cbb-delivery
+        key: cbb-morning-v1-${{ steps.clock.outputs.date }}
+
     - name: Checkout code
-      uses: actions/checkout@v3
+      if: steps.clock.outputs.send == 'true' && steps.delivered.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event.repository.default_branch }}
+        clean: false
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      if: steps.clock.outputs.send == 'true' && steps.delivered.outputs.cache-hit != 'true'
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      if: steps.clock.outputs.send == 'true' && steps.delivered.outputs.cache-hit != 'true'
+      run: pip install -r requirements.txt
 
     - name: Send picks to Discord
+      if: steps.clock.outputs.send == 'true' && steps.delivered.outputs.cache-hit != 'true'
       env:
         ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         TZ: America/Chicago
+        REPORT_DATE: ${{ steps.clock.outputs.report_date }}
       run: |
         test -n "$DISCORD_WEBHOOK_URL" || { echo "Missing DISCORD_WEBHOOK_URL secret"; exit 1; }
         python email_picks_gsheets.py
+        mkdir -p .cbb-delivery
+        touch .cbb-delivery/sent
+
+    - name: Remember successful morning delivery
+      if: github.event_name == 'schedule' && steps.clock.outputs.send == 'true' && steps.delivered.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: .cbb-delivery
+        key: cbb-morning-v1-${{ steps.clock.outputs.date }}

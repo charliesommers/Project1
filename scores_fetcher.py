@@ -477,6 +477,11 @@ class ScoresFetcher:
             if team2 != mascot and mascot in team2:
                 team2 = team2.replace(mascot, '').strip()
 
+        # The University of Florida is distinct from Florida State,
+        # Central Florida, South Florida and other schools containing Florida.
+        if team1 == "florida" or team2 == "florida":
+            return team1 == team2
+
         # Direct match
         if team1 == team2:
             return True

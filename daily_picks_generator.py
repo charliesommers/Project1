@@ -81,10 +81,10 @@ class DailyPicksGenerator:
             favorite_is_home = fetcher._teams_match(favorite, home_team)
             favorite_is_away = fetcher._teams_match(favorite, away_team)
 
-            if favorite_is_home:
+            if favorite_is_home and not favorite_is_away:
                 # Favorite is home - use home spread directly
                 sportsbook_spread = sportsbook_home_spread
-            elif favorite_is_away:
+            elif favorite_is_away and not favorite_is_home:
                 # Favorite is away - flip the spread sign
                 sportsbook_spread = -sportsbook_home_spread
             else:

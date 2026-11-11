@@ -133,7 +133,8 @@ def spread_comparison_line(game, sportsbook_game):
         elif away and not home:
             fan_duel = -sportsbook_game["spread"]
     fan_duel_text = f"{fan_duel:+.1f}" if fan_duel is not None else "pending"
-    return f"Spread ({team}): Greg {greg_text} | FanDuel {fan_duel_text}\n"
+    book = sportsbook_game.get("bookmaker_title", sportsbook_game.get("source_bookmaker", "Sportsbook")) if sportsbook_game else "Sportsbook"
+    return f"Spread ({team}): Greg {greg_text} | {book} {fan_duel_text}\n"
 
 
 def get_picks_text(report_date=None):
@@ -166,7 +167,7 @@ def get_picks_text(report_date=None):
     # Get odds from ALL bookmakers in a SINGLE API request (saves credits!)
     fetcher = OddsFetcher()
 
-    print("Fetching FanDuel odds only...")
+    print("Fetching FanDuel first, with other sportsbooks as fallbacks...")
     all_sportsbook_data = fetcher.fetch_ncaab_odds_all_bookmakers()
 
     # Get list of unique bookmakers found
@@ -231,9 +232,24 @@ def get_picks_text(report_date=None):
 
     # Format as text
     text = f"\n📅 Games for {games[0]['date'].strftime('%B %d, %Y')}\n"
-    text += "**FanDuel • Daily CBB Report**\n\n"
+    text += "**Daily CBB Report • FanDuel first**\n\n"
     text += f"{len(picks_with_odds)} games with odds\n"
     text += f"{len(games_without_odds)} pending\n"
+    fallback_count = sum(p.get("bookmaker") != "fanduel" for p in picks_with_odds)
+    text += f"{fallback_count} totals supplied by fallback books\n"
+
+
+    # Rank each game's selected total once; do not cherry-pick books for a bigger gap.
+    top_totals = sorted(picks_with_odds, key=lambda p: abs(p['edge']), reverse=True)[:10]
+    text += "\n**🎯 TOP 10 TOTAL GAPS**\n\n"
+    if not top_totals:
+        text += "No safely matched sportsbook totals available.\n\n"
+    for rank, pick in enumerate(top_totals, 1):
+        status = f"🔥 {pick['pick']} {pick['sportsbook_total']:.1f}" if pick.get('triggered') else f"PASS · Total {pick['sportsbook_total']:.1f}"
+        book = pick.get('bookmaker_title', pick['bookmaker'])
+        text += f"**{rank}. {status}**\n"
+        text += f"{clean_team_name(pick['away_team'])} @ {clean_team_name(pick['home_team'])}\n"
+        text += f"Greg {pick['gregs_total']:.1f} | {book} {pick['sportsbook_total']:.1f} | **Gap {abs(pick['edge']):.1f} pts**\n\n"
 
     # Display TOP SPREAD EDGES (major conferences only)
     if top_spread_picks:
@@ -272,7 +288,7 @@ def get_picks_text(report_date=None):
             text += f"{matchup_display}\n"
             text += f"{game_time_str} CT\n"
             text += f"**Gap: {pick['edge']:.1f} pts**\n"
-            text += f"Greg: {pick['gregs_spread']:+.1f} | FanDuel: {pick['sportsbook_spread']:+.1f}\n\n"
+            text += f"Greg: {pick['gregs_spread']:+.1f} | {pick.get('bookmaker_title', pick['bookmaker'])}: {pick['sportsbook_spread']:+.1f}\n\n"
 
         text += "─"*16 + "\n\n"
 
@@ -316,7 +332,7 @@ def get_picks_text(report_date=None):
         all_games_list.append({
             'type': 'pending',
             'data': game,
-            'sort_time': float('inf'),  # All pending games at very end
+             'sort_time': game_sort_time((generator._match_game(game, all_sportsbook_data) or {}).get("commence_time")),
             'sort_team': away_team.lower()  # Sort alphabetically by away team
         })
 
@@ -368,7 +384,7 @@ def get_picks_text(report_date=None):
             else:
                 text += f"**PASS · Total {pick['sportsbook_total']:.1f}**\n"
             text += f"{matchup_display} • {game_time_str}\n"
-            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | FanDuel: {pick['sportsbook_total']:.1f}\n"
+            text += f"Edge: {edge:.1f} | Greg: {pick['gregs_total']:.1f} | {pick.get('bookmaker_title', pick['bookmaker'])}: {pick['sportsbook_total']:.1f}\n"
 
         else:  # pending game
             game = item['data']
@@ -395,11 +411,15 @@ def get_picks_text(report_date=None):
             matchup_display = f"{away} @ {home}"
 
             text += f"⏳ PENDING\n"
-            text += f"{matchup_display} • TBD\n"
+            book_game = generator._match_game(game, all_sportsbook_data)
+            tipoff = "TBD"
+            if book_game and book_game.get("commence_time"):
+                tipoff = datetime.fromisoformat(book_game["commence_time"].replace("Z", "+00:00")).astimezone(ZoneInfo("America/Chicago")).strftime("%I:%M %p")
+            text += f"{matchup_display} • {tipoff}\n"
             text += f"Greg's Total: {game['total']:.1f}\n"
 
         greg_game = games_by_matchup[item["data"]["matchup"]]
-        sportsbook_game = generator._match_game(greg_game, all_sportsbook_data)
+        sportsbook_game = generator._match_game(greg_game, all_sportsbook_data, required_market="spread")
         text += spread_comparison_line(greg_game, sportsbook_game)
 
         if i < len(all_games_list):
@@ -449,7 +469,7 @@ def send_discord(webhook_url, subject, body):
                 "title": subject if index == 1 else f"All games · continued ({index}/{len(chunks)})",
                 "description": chunk,
                 "color": 0x168BDE,
-                "footer": {"text": f"FanDuel only • Central Time • {index}/{len(chunks)}"}
+                "footer": {"text": f"FanDuel first + fallback books • Central Time • {index}/{len(chunks)}"}
             }]
         }
         for attempt in range(3):

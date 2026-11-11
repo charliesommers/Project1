@@ -48,13 +48,13 @@ class OddsFetcher:
         params = {
             'apiKey': self.api_key,
             'regions': 'us',
-            'bookmakers': 'fanduel',
+            'bookmakers': 'fanduel,draftkings,betmgm,betrivers,betonlineag,lowvig,bovada,betus,mybookieag',
             'markets': 'spreads,totals',
             'oddsFormat': 'american'
         }
 
         print(f"Fetching odds from: {endpoint}")
-        print("Fetching FanDuel spreads and totals")
+        print("Fetching FanDuel and fallback spreads/totals in one request")
 
         try:
             response = requests.get(endpoint, params=params, timeout=30)
@@ -84,7 +84,7 @@ class OddsFetcher:
                 # Process each bookmaker's odds for this game
                 for bookmaker_info in bookmakers_data:
                     bookmaker_name = bookmaker_info.get('key', '')
-                    if bookmaker_name != 'fanduel':
+                    if bookmaker_name not in ('fanduel','draftkings','betmgm','betrivers','betonlineag','lowvig','bovada','betus','mybookieag'):
                         continue
                     markets = bookmaker_info.get('markets', [])
 
@@ -112,7 +112,8 @@ class OddsFetcher:
                             'commence_time': commence_time,
                             'total': total,
                             'spread': spread,
-                            'source_bookmaker': bookmaker_name
+                            'source_bookmaker': bookmaker_name,
+                            'bookmaker_title': bookmaker_info.get('title', bookmaker_name)
                         })
 
             print(f"✓ Fetched {len(structured_games)} game-bookmaker combinations")

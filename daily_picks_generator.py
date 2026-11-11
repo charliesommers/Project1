@@ -54,7 +54,7 @@ class DailyPicksGenerator:
 
         for gregs_game in gregs_games:
             # Find matching sportsbook game
-            sportsbook_game = self._match_game(gregs_game, sportsbook_data)
+            sportsbook_game = self._match_game(gregs_game, sportsbook_data, required_market='spread')
 
             if not sportsbook_game:
                 continue
@@ -168,6 +168,7 @@ class DailyPicksGenerator:
                 'conference': conference,
                 'game_time': sportsbook_game.get('commence_time', ''),
                 'bookmaker': sportsbook_game.get('source_bookmaker', ''),
+                'bookmaker_title': sportsbook_game.get('bookmaker_title', sportsbook_game.get('source_bookmaker', 'Unknown')),
                 'away_team': away_team,
                 'home_team': home_team
             })
@@ -196,7 +197,7 @@ class DailyPicksGenerator:
 
         for gregs_game in gregs_games:
             # Find matching sportsbook game
-            sportsbook_game = self._match_game(gregs_game, sportsbook_data)
+            sportsbook_game = self._match_game(gregs_game, sportsbook_data, required_market='total')
 
             if not sportsbook_game:
                 continue
@@ -258,6 +259,7 @@ class DailyPicksGenerator:
                 'reasoning': self._get_reasoning(pick, edge),
                 'game_time': sportsbook_game.get('commence_time', ''),
                 'bookmaker': sportsbook_game.get('source_bookmaker', ''),
+                'bookmaker_title': sportsbook_game.get('bookmaker_title', sportsbook_game.get('source_bookmaker', 'Unknown')),
                 'conference': conference,
                 'away_team': away_team,
                 'home_team': home_team
@@ -268,24 +270,42 @@ class DailyPicksGenerator:
 
         return picks
 
-    def _match_game(self, gregs_game: Dict, sportsbook_games: List[Dict]) -> Optional[Dict]:
-        """Match Greg's game to sportsbook game."""
+    def _match_game(self, gregs_game: Dict, sportsbook_games: List[Dict],
+                    required_market: Optional[str] = None) -> Optional[Dict]:
+        """Select one same-date matchup, prefer FD per market, then fixed fallback order."""
         from scores_fetcher import ScoresFetcher
-        fetcher = ScoresFetcher()
-
-        gregs_fav = gregs_game['favorite']
-        gregs_dog = gregs_game['underdog']
-
-        for sb_game in sportsbook_games:
-            home = sb_game.get('home_team', '')
-            away = sb_game.get('away_team', '')
-
-            # Check if teams match
-            if (fetcher._teams_match(gregs_fav, home) and fetcher._teams_match(gregs_dog, away)) or \
-               (fetcher._teams_match(gregs_fav, away) and fetcher._teams_match(gregs_dog, home)):
-                return sb_game
-
-        return None
+        from zoneinfo import ZoneInfo
+        matcher = ScoresFetcher()
+        priority = ['fanduel', 'draftkings', 'betmgm', 'betrivers',
+                    'betonlineag', 'lowvig', 'bovada', 'betus', 'mybookieag']
+        candidates = []
+        for book in sportsbook_games:
+            if required_market and book.get(required_market) is None:
+                continue
+            home, away = book.get('home_team', ''), book.get('away_team', '')
+            fh = matcher._teams_match(gregs_game['favorite'], home)
+            fa = matcher._teams_match(gregs_game['favorite'], away)
+            dh = matcher._teams_match(gregs_game['underdog'], home)
+            da = matcher._teams_match(gregs_game['underdog'], away)
+            if not ((fh and da and not fa and not dh) or
+                    (fa and dh and not fh and not da)):
+                continue
+            if book.get('commence_time') and gregs_game.get('date'):
+                try:
+                    when = datetime.fromisoformat(book['commence_time'].replace('Z', '+00:00'))
+                    if when.tzinfo is None or when.astimezone(ZoneInfo('America/Chicago')).date() != gregs_game['date'].date():
+                        continue
+                except (ValueError, TypeError):
+                    continue
+            candidates.append(book)
+        # Ambiguous school matching must not select a different event arbitrarily.
+        events = {(b.get('home_team'), b.get('away_team'), b.get('commence_time')) for b in candidates}
+        if len(events) != 1:
+            return None
+        return min(candidates, key=lambda b: (
+            priority.index(b.get('source_bookmaker')) if b.get('source_bookmaker') in priority else len(priority),
+            b.get('source_bookmaker', '')
+        ))
 
     def _get_reasoning(self, pick: str, edge: float) -> str:
         """Generate reasoning text for the pick."""

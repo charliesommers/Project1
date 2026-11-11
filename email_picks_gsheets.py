@@ -228,7 +228,7 @@ def get_picks_text(report_date=None):
 
     # Rank spread discrepancies across all conferences.
     spread_picks = generator.generate_spread_picks(games, all_sportsbook_data)
-    top_spread_picks = spread_picks[:10]  # Top 10 biggest discrepancies
+    top_spread_picks = spread_picks[:20]  # Top 20 biggest discrepancies
 
     # Format as text
     text = f"\n📅 Games for {games[0]['date'].strftime('%B %d, %Y')}\n"
@@ -240,8 +240,8 @@ def get_picks_text(report_date=None):
 
 
     # Rank each game's selected total once; do not cherry-pick books for a bigger gap.
-    top_totals = sorted(picks_with_odds, key=lambda p: abs(p['edge']), reverse=True)[:10]
-    text += "\n**🎯 TOP 10 TOTAL GAPS**\n\n"
+    top_totals = sorted(picks_with_odds, key=lambda p: abs(p['edge']), reverse=True)[:20]
+    text += "\n**🎯 TOP 20 TOTAL GAPS**\n\n"
     if not top_totals:
         text += "No safely matched sportsbook totals available.\n\n"
     for rank, pick in enumerate(top_totals, 1):
@@ -254,7 +254,7 @@ def get_picks_text(report_date=None):
     # Display TOP SPREAD EDGES (major conferences only)
     if top_spread_picks:
         text += "\n" + "─"*16 + "\n"
-        text += "**🏀 TOP 10 SPREAD GAPS**\n"
+        text += "**🏀 TOP 20 SPREAD GAPS**\n"
         text += "─"*16 + "\n\n"
 
         for i, pick in enumerate(top_spread_picks, 1):

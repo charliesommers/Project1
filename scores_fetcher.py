@@ -451,6 +451,70 @@ class ScoresFetcher:
         team1 = team1.lower().strip()
         team2 = team2.lower().strip()
 
+        # Explicit school identities cover Greg's abbreviations and typos.
+        # Never infer a different school from a shared substring.
+        import re
+        import unicodedata
+        aliases = {
+            'ge mason': 'george mason', 'george mason': 'george mason',
+            'kansas city': 'umkc', 'umkc': 'umkc',
+            'cs bakersfield': 'cal state bakersfield', 'cal state bakersfield': 'cal state bakersfield',
+            'west illinois': 'western illinois', 'western illinois': 'western illinois',
+            'west michigan': 'western michigan', 'western michigan': 'western michigan',
+            'fort wayne': 'purdue fort wayne', 'purdue fort wayne': 'purdue fort wayne',
+            'south illionis': 'southern illinois', 'so illinois': 'southern illinois',
+            'south illinois': 'southern illinois', 'southern illinois': 'southern illinois',
+            'mercyhust': 'mercyhurst', 'mercyhurst': 'mercyhurst',
+            'cen connecticut': 'central connecticut', 'cent connecticut': 'central connecticut',
+            'central connecticut': 'central connecticut', 'ccsu': 'central connecticut',
+            'loyola md': 'loyola maryland', 'loyola maryland': 'loyola maryland',
+            'loyola il': 'loyola chicago', 'loyola chicago': 'loyola chicago',
+            'md east shore': 'maryland eastern shore', 'maryland eastern shore': 'maryland eastern shore',
+            'no carolina a and t': 'north carolina a and t',
+            'north carolina a and t': 'north carolina a and t',
+            'so indiana': 'southern indiana', 'southern indiana': 'southern indiana',
+            'iu indy': 'iu indianapolis', 'iu indianapolis': 'iu indianapolis', 'iupui': 'iu indianapolis',
+            'so dakota state': 'south dakota state', 'south dakota state': 'south dakota state',
+            'fair dickinson': 'fairleigh dickinson', 'fairleigh dickinson': 'fairleigh dickinson',
+            'massachuestts': 'massachusetts', 'massachusetts': 'massachusetts', 'umass': 'massachusetts',
+            'cal baptist': 'california baptist', 'california baptist': 'california baptist',
+            'boston univ': 'boston university', 'boston university': 'boston university',
+            'albany': 'ualbany', 'ualbany': 'ualbany',
+            'florida': 'florida', 'florida state': 'florida state',
+            'usc': 'southern california', 'southern california': 'southern california',
+            'california': 'california',
+            'san jose state': 'san jose state',
+            'st josephs': 'saint josephs', 'saint josephs': 'saint josephs',
+            'st peters': 'saint peters', 'saint peters': 'saint peters',
+            'ut san antonio': 'utsa', 'utsa': 'utsa',
+        }
+        extra_mascots = [
+            'screaming eagles', 'scarlet knights', 'golden bears', 'fighting hawks',
+            'thundering herd', 'great danes', 'black knights', 'red wolves',
+            'jackrabbits', 'roadrunners', 'patriots', 'retrievers', 'mastodons',
+            'peacocks', 'minutemen', 'jaguars', 'dukes', 'horned frogs', 'roos',
+            'gators', 'seminoles', 'spartans', 'terriers', 'salukis', 'hawkeyes',
+            'leathernecks', 'broncos', 'lakers', 'blue devils', 'greyhounds',
+            'hawks', 'owls', 'lancers', 'knights', 'trojans', 'wolverines',
+        ]
+        def school_key(name):
+            name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+            name = name.replace("&", " and ").replace("-", " ")
+            name = re.sub(r"[^a-z0-9 ]", "", name)
+            name = " ".join(name.split())
+            for mascot in sorted(extra_mascots, key=len, reverse=True):
+                if name.endswith(" " + mascot):
+                    name = name[:-len(mascot)].strip()
+                    break
+            name = re.sub(r"\bst\b", "state", name)
+            return aliases.get(name, name)
+        key1, key2 = school_key(team1), school_key(team2)
+        if key1 == key2 and key1:
+            return True
+        known = set(aliases.values())
+        if key1 in known or key2 in known:
+            return False
+
         # Remove common mascots/nicknames from sportsbook names
         mascots = [
             'aggies', 'aztecs', 'badgers', 'bears', 'bearcats', 'beavers', 'bengals',

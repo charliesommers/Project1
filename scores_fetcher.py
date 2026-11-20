@@ -492,6 +492,10 @@ class ScoresFetcher:
         aliases.update({'mt state marys': 'mount saint marys', 'mvsu': 'mississippi valley state'})
         extra_mascots = ['screaming eagles', 'golden griffins', 'revolutionaries', 'scarlet knights', 'thundering herd', 'fighting hawks', 'fighting irish', 'golden gophers', 'black knights', 'golden eagles', 'nittany lions', 'chanticleers', 'crimson tide', 'golden bears', 'horned frogs', 'leathernecks', 'mountaineers', 'ragin cajuns', 'blue devils', 'great danes', 'hilltoppers', 'jackrabbits', 'lumberjacks', 'red raiders', 'river hawks', 'roadrunners', 'buccaneers', 'greyhounds', 'hurricanes', 'musketeers', 'razorbacks', 'red wolves', 'retrievers', 'sun devils', 'volunteers', 'wolverines', 'antelopes', 'cardinals', 'crusaders', 'governors', 'grizzlies', 'islanders', 'mastodons', 'minutemen', 'orangemen', 'red flash', 'red hawks', 'red storm', 'seminoles', 'tar heels', 'terrapins', 'antelope', 'bearcats', 'buckeyes', 'bulldogs', 'cyclones', 'hawkeyes', 'jayhawks', 'mustangs', 'panthers', 'patriots', 'peacocks', 'ramblers', 'redhawks', 'skyhawks', 'spartans', 'terriers', 'wildcats', 'wolfpack', 'badgers', 'beavers', 'bengals', 'bobcats', 'broncos', 'buffalo', 'cougars', 'cowboys', 'falcons', 'hornets', 'huskies', 'jaguars', 'knights', 'lancers', 'pirates', 'salukis', 'sooners', 'trojans', 'aggies', 'aztecs', 'bruins', 'demons', 'eagles', 'gators', 'hokies', 'lakers', 'miners', 'rebels', 'sharks', 'tigers', 'titans', 'bears', 'ducks', 'dukes', 'hawks', 'lions', 'lobos', 'owls', 'rams', 'roos', 'utes']
         aliases.update({
+            'gw': 'george washington',
+            'csu northridge': 'cal state northridge',
+            'tenn martin': 'tennessee martin',
+            'delaware': 'delaware', 'delaware state': 'delaware state',
             'uw green bay': 'green bay', 'green bay': 'green bay',
             'uw milwaukee': 'milwaukee', 'milwaukee': 'milwaukee',
             'cs northridge': 'cal state northridge', 'cal state northridge': 'cal state northridge',

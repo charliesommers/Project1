@@ -520,7 +520,7 @@ class ScoresFetcher:
             'ut arlington': 'texas arlington', 'texas arlington': 'texas arlington',
             'miss valley state': 'mississippi valley state',
         })
-        extra_mascots += ['phoenix', 'blazers', 'yellow jackets', 'billikens',
+        extra_mascots += ['blue hens', 'phoenix', 'blazers', 'yellow jackets', 'billikens',
                           'purple eagles', 'fighting illini', 'leathernecks', 'racers',
                           'roos', 'kangaroos', 'matadors', 'chippewas', 'colonels',
                           'redbirds', 'mavericks', 'demons', 'lumberjacks']

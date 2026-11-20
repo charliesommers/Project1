@@ -218,8 +218,21 @@ def get_picks_text(report_date=None):
 
     if games_without_odds:
         print(f"\nGames that didn't match:")
-        for game in games_without_odds[:10]:
+        from scores_fetcher import ScoresFetcher
+        matcher = ScoresFetcher()
+        for game in games_without_odds:
             print(f"  - {game['matchup']}")
+            # Log related feed events so missing markets and name mismatches
+            # can be distinguished without another paid API request.
+            related = set()
+            for book in all_sportsbook_data:
+                if any(matcher._teams_match(team, book.get(side, ''))
+                       for team in (game['favorite'], game['underdog'])
+                       for side in ('home_team', 'away_team')):
+                    related.add((book.get('away_team', ''), book.get('home_team', ''),
+                                 book.get('commence_time', ''), book.get('total') is not None))
+            for away, home, when, has_total in sorted(related):
+                print(f"    Related feed event: {away} @ {home} | {when} | total available={has_total}")
 
     # Note: Pending games will show with TBD for game times
     # Team name matching between sources is too unreliable for consistent results
@@ -508,3 +521,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

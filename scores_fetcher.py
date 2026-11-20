@@ -491,6 +491,35 @@ class ScoresFetcher:
         aliases.update({'ge washington': 'george washington', 'george washington': 'george washington', 'northern az': 'northern arizona', 'northern arizona': 'northern arizona', 'tennessee': 'tennessee', 'tennessee state': 'tennessee state', 'arkansas': 'arkansas', 'cen arkansas': 'central arkansas', 'central arkansas': 'central arkansas', 'mid tennessee': 'middle tennessee', 'middle tennessee': 'middle tennessee', 'se missouri state': 'southeast missouri state', 'southeast missouri state': 'southeast missouri state', 'siu edwardsville': 'siu edwardsville', 'siue': 'siu edwardsville', 'no dakota state': 'north dakota state', 'north dakota state': 'north dakota state', 'smu': 'southern methodist', 'southern methodist': 'southern methodist', 'state marys': 'saint marys', 'saint marys': 'saint marys', 'mount state marys': 'mount saint marys', 'mount saint marys': 'mount saint marys', 'il chicago': 'illinois chicago', 'illinois chicago': 'illinois chicago', 'uic': 'illinois chicago', 'ark pine bluff': 'arkansas pine bluff', 'arkansas pine bluff': 'arkansas pine bluff', 'fl international': 'florida international', 'florida international': 'florida international', 'fiu': 'florida international', 'fl gulf coast': 'florida gulf coast', 'florida gulf coast': 'florida gulf coast', 'fgcu': 'florida gulf coast', 'long island': 'liu', 'liu': 'liu', 'liu brooklyn': 'liu', 'ms valley state': 'mississippi valley state', 'mississippi valley state': 'mississippi valley state', 'texas a and m cc': 'texas a and m corpus christi', 'texas a and m corpus christi': 'texas a and m corpus christi', 'state josephs': 'saint josephs', 'state peters': 'saint peters'})
         aliases.update({'mt state marys': 'mount saint marys', 'mvsu': 'mississippi valley state'})
         extra_mascots = ['screaming eagles', 'golden griffins', 'revolutionaries', 'scarlet knights', 'thundering herd', 'fighting hawks', 'fighting irish', 'golden gophers', 'black knights', 'golden eagles', 'nittany lions', 'chanticleers', 'crimson tide', 'golden bears', 'horned frogs', 'leathernecks', 'mountaineers', 'ragin cajuns', 'blue devils', 'great danes', 'hilltoppers', 'jackrabbits', 'lumberjacks', 'red raiders', 'river hawks', 'roadrunners', 'buccaneers', 'greyhounds', 'hurricanes', 'musketeers', 'razorbacks', 'red wolves', 'retrievers', 'sun devils', 'volunteers', 'wolverines', 'antelopes', 'cardinals', 'crusaders', 'governors', 'grizzlies', 'islanders', 'mastodons', 'minutemen', 'orangemen', 'red flash', 'red hawks', 'red storm', 'seminoles', 'tar heels', 'terrapins', 'antelope', 'bearcats', 'buckeyes', 'bulldogs', 'cyclones', 'hawkeyes', 'jayhawks', 'mustangs', 'panthers', 'patriots', 'peacocks', 'ramblers', 'redhawks', 'skyhawks', 'spartans', 'terriers', 'wildcats', 'wolfpack', 'badgers', 'beavers', 'bengals', 'bobcats', 'broncos', 'buffalo', 'cougars', 'cowboys', 'falcons', 'hornets', 'huskies', 'jaguars', 'knights', 'lancers', 'pirates', 'salukis', 'sooners', 'trojans', 'aggies', 'aztecs', 'bruins', 'demons', 'eagles', 'gators', 'hokies', 'lakers', 'miners', 'rebels', 'sharks', 'tigers', 'titans', 'bears', 'ducks', 'dukes', 'hawks', 'lions', 'lobos', 'owls', 'rams', 'roos', 'utes']
+        aliases.update({
+            'uw green bay': 'green bay', 'green bay': 'green bay',
+            'uw milwaukee': 'milwaukee', 'milwaukee': 'milwaukee',
+            'cs northridge': 'cal state northridge', 'cal state northridge': 'cal state northridge',
+            'csun': 'cal state northridge', 'csu bakersfield': 'cal state bakersfield',
+            'cen michigan': 'central michigan', 'central michigan': 'central michigan',
+            'coast carolina': 'coastal carolina', 'coastal carolina': 'coastal carolina',
+            'state joesphs': 'saint josephs', 'st joesphs': 'saint josephs',
+            'west kentucky': 'western kentucky', 'western kentucky': 'western kentucky',
+            'west illionis': 'western illinois',
+            'east illionis': 'eastern illinois', 'east illinois': 'eastern illinois',
+            'eastern illinois': 'eastern illinois',
+            'east kentucky': 'eastern kentucky', 'eastern kentucky': 'eastern kentucky',
+            'so carolina state': 'south carolina state', 'south carolina state': 'south carolina state',
+            'state louis': 'saint louis', 'saint louis': 'saint louis',
+            'steph f austin': 'stephen f austin', 'stephen f austin': 'stephen f austin',
+            'sfa': 'stephen f austin',
+            'nc state': 'north carolina state', 'north carolina state': 'north carolina state',
+            'georgia': 'georgia', 'georgia tech': 'georgia tech', 'georgia state': 'georgia state',
+            'illinois': 'illinois', 'northwestern': 'northwestern', 'northwestern state': 'northwestern state',
+            'uab': 'alabama birmingham', 'alabama birmingham': 'alabama birmingham',
+            'ut martin': 'tennessee martin', 'tennessee martin': 'tennessee martin',
+            'ut arlington': 'texas arlington', 'texas arlington': 'texas arlington',
+            'miss valley state': 'mississippi valley state',
+        })
+        extra_mascots += ['phoenix', 'blazers', 'yellow jackets', 'billikens',
+                          'purple eagles', 'fighting illini', 'leathernecks', 'racers',
+                          'roos', 'kangaroos', 'matadors', 'chippewas', 'colonels',
+                          'redbirds', 'mavericks', 'demons', 'lumberjacks']
         def school_key(name):
             name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
             name = name.replace("&", " and ").replace("-", " ")
@@ -616,3 +645,4 @@ class ScoresFetcher:
             current_date += timedelta(days=1)
 
         return all_games
+

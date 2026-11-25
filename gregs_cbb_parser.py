@@ -38,6 +38,13 @@ class GregsCBBParser:
             # Handle various formats
             sheet_name = str(sheet_name).strip()
 
+            # Confirmed source typo: the 2026-11-25 live slate is labeled 112525.
+            # Limit the correction to this report date so historical dates stay intact.
+            if (sheet_name in ("112525", "11/25/25")
+                    and self.date_reference
+                    and self.date_reference.isoformat() == "2026-11-25"):
+                return datetime(2026, 11, 25)
+
             # Skip sheets that start with "Copy of"
             if sheet_name.startswith("Copy of"):
                 return None
